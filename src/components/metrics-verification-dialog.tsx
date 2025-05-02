@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, Download, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Ensure Card components are imported
 import type { ComparisonLog } from "@/types/compare";
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
@@ -186,8 +186,8 @@ export function MetricsVerificationDialog({
                                Raw Stats Per Model
                            </button>
                            {showRawStats && (
-                               <ScrollArea className="mt-2 max-h-48 pr-3">
-                                   <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-x-auto">
+                               <ScrollArea className="mt-2 max-h-48 pr-3"> {/* Keep max-height here for the accordion */}
+                                   <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                                        {JSON.stringify(aggregatedMetrics.rawStats, null, 2)}
                                    </pre>
                                </ScrollArea>
@@ -202,9 +202,10 @@ export function MetricsVerificationDialog({
             </TabsContent>
 
             <TabsContent value="rawLog">
-              {/* Set max height for scroll area within the raw log tab */}
-              <ScrollArea className="max-h-96 border rounded-md">
-                  <pre className="text-xs bg-muted/50 p-4 overflow-x-auto">
+              {/* Removed fixed max-height from ScrollArea, rely on parent scrolling */}
+              {/* Added whitespace-pre-wrap and break-all to pre tag for better wrapping */}
+              <ScrollArea className="border rounded-md">
+                  <pre className="text-xs bg-muted/50 p-4 overflow-x-auto whitespace-pre-wrap break-all">
                     {logEntry ? JSON.stringify(logEntry, null, 2) : "No log data available."}
                   </pre>
               </ScrollArea>
