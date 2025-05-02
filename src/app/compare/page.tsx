@@ -11,41 +11,35 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { BarChart, FileText, CheckSquare, Paintbrush, Combine, FlaskConical, RefreshCw } from "lucide-react";
-import type { Connection } from "@/app/settings/page"; // Import Connection type
-import { ComparisonSetup } from "@/components/comparison-setup"; // Import the new setup component
+import { FileText, CheckSquare, Paintbrush, Combine, FlaskConical, RefreshCw, BarChart } from "lucide-react";
+import type { Connection } from "@/app/settings/page";
+import { ComparisonSetup } from "@/components/comparison-setup";
+import { PerformanceChart } from "@/components/performance-chart"; // Import the chart component
+import { ResultCard } from "@/components/result-card"; // Import the result card component
+import type { PerformanceResult } from "@/types/compare"; // Import shared type
 import { useToast } from "@/hooks/use-toast";
-
-// Mock data structure for performance results (replace with actual data later)
-type PerformanceResult = {
-  connectionId: string;
-  connectionName: string;
-  responseTime: number; // in ms
-  tokensPerSecond: number;
-  output: string;
-  rating?: { rating: number; explanation: string }; // Optional AI rating
-};
 
 export default function ComparePage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showResults, setShowResults] = React.useState(false);
-  const [results, setResults] = React.useState<PerformanceResult[]>([]); // State to hold comparison results
-
-  // Fetch connections from localStorage (similar to settings page)
+  const [results, setResults] = React.useState<PerformanceResult[]>([]);
   const [connections, setConnections] = React.useState<Connection[]>([]);
+
   React.useEffect(() => {
     const savedConnections = localStorage.getItem('llm_connections');
+    let activeConnections: Connection[] = [];
     if (savedConnections) {
       try {
         const parsedConnections = JSON.parse(savedConnections) as Connection[];
-        setConnections(parsedConnections.filter(conn => conn.isActive)); // Only use active connections
+        activeConnections = parsedConnections.filter(conn => conn.isActive);
       } catch (error) {
         console.error("Failed to parse connections from localStorage", error);
-        setConnections([]);
       }
-    } else {
-        // Add mock data if local storage is empty
+    }
+
+    if (activeConnections.length === 0) {
+        // Add mock data if local storage is empty or no active connections
         const mockConnections: Connection[] = [
             {
                 id: 'mock-ollama-1',
@@ -70,12 +64,26 @@ export default function ComparePage() {
                 temperature: 0.6,
                 maxTokens: 4096,
                 isActive: true,
+            },
+             {
+                id: 'mock-api-1',
+                type: 'api',
+                providerName: 'openai', // Ensure this matches a key in supportedProviders
+                connectionName: "OpenAI GPT-4o",
+                apiKey: "mock-key", // Use placeholder
+                apiUrl: "", // OpenAI doesn't need URL
+                model: "gpt-4o",
+                temperature: 0.7,
+                maxTokens: 1024,
+                isActive: true,
             }
         ];
-        setConnections(mockConnections.filter(conn => conn.isActive));
+        activeConnections = mockConnections.filter(conn => conn.isActive);
         // Optionally save mocks to localStorage for next load
         // localStorage.setItem('llm_connections', JSON.stringify(mockConnections));
     }
+     setConnections(activeConnections);
+
   }, []);
 
 
@@ -111,36 +119,81 @@ export default function ComparePage() {
     }
 
     setIsLoading(true);
-    setShowResults(true); // Show the performance metrics area immediately with loading state
-    setResults([]); // Clear previous results
+    setShowResults(true);
+    setResults([]); // Clear previous results, but keep showing the section
 
     // Simulate API calls and AI rating for selected models
     try {
-      // In a real app, you'd map over selectedConnectionIds and make API calls
-      // For now, generate mock results based on selected IDs and the prompt
-      const mockResults: PerformanceResult[] = data.selectedConnectionIds.map(id => {
+      // Generate mock results immediately for loading state
+      const loadingResults: PerformanceResult[] = data.selectedConnectionIds.map(id => {
           const conn = connections.find(c => c.id === id);
-          const name = conn?.connectionName || `Model ${id.substring(0, 5)}`;
-          const randomTime = 500 + Math.random() * 2500; // 0.5s to 3s
-          const randomTokens = 10 + Math.random() * 40; // 10 to 50 tokens/sec
           return {
               connectionId: id,
-              connectionName: name,
-              responseTime: Math.round(randomTime),
-              tokensPerSecond: parseFloat(randomTokens.toFixed(1)),
-              output: `Mock response from ${name} for prompt: "${data.prompt}". Responded in ${Math.round(randomTime)}ms.`,
-              // Simulate optional rating
-              rating: Math.random() > 0.3 ? {
-                  rating: parseFloat((5 + Math.random() * 5).toFixed(1)), // 5.0 to 10.0
-                  explanation: `AI explanation for ${name}'s rating.`,
-              } : undefined,
+              connectionName: conn?.connectionName || `Model ${id.substring(0, 5)}`,
+              // Initial empty/loading values
+              processingTime: 0,
+              responseTime: 0,
+              tokensPerSecond: 0,
+              totalTokens: 0,
+              promptTokens: 0,
+              completionTokens: 0,
+              elapsedTime: 0,
+              output: "...", // Placeholder for loading output
+              status: 'running' as 'running',
           };
       });
+       setResults(loadingResults); // Show loading cards
 
-      // Simulate delay for fetching all results
-      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+      // In a real app, you'd map over selectedConnectionIds and make API calls concurrently
+      // For now, simulate fetching results one by one with delays
 
-      setResults(mockResults);
+      const fetchedResults: PerformanceResult[] = [];
+      for (const id of data.selectedConnectionIds) {
+        const conn = connections.find(c => c.id === id);
+        const name = conn?.connectionName || `Model ${id.substring(0, 5)}`;
+
+        // Simulate API call delay
+        const delay = 500 + Math.random() * 2500; // 0.5s to 3s
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        // Generate mock performance data
+        const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
+        const responseTime = processingTime; // Simplified for mock
+        const completionTokens = 5 + Math.floor(Math.random() * 500);
+        const promptTokens = data.prompt.split(/\s+/).length; // Rough estimate
+        const totalTokens = promptTokens + completionTokens;
+        const tokensPerSecond = parseFloat((completionTokens / processingTime).toFixed(1)) || 0;
+        const elapsedTime = processingTime; // Simplified
+
+         const mockOutput = `Mock response from ${name} for prompt: "${data.prompt}".\n\nGenerated ${completionTokens} tokens in ${processingTime}s. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. ${Math.random() > 0.5 ? 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' : ''}`;
+
+        const result: PerformanceResult = {
+          connectionId: id,
+          connectionName: name,
+          processingTime: processingTime,
+          responseTime: responseTime,
+          tokensPerSecond: tokensPerSecond,
+          totalTokens: totalTokens,
+          promptTokens: promptTokens,
+          completionTokens: completionTokens,
+          elapsedTime: elapsedTime,
+          output: mockOutput,
+          status: 'complete' as 'complete',
+          // Simulate optional AI rating (less frequent)
+          rating: Math.random() > 0.7 ? {
+            rating: parseFloat((5 + Math.random() * 5).toFixed(1)), // 5.0 to 10.0
+            explanation: `AI explanation for ${name}'s rating. It performed adequately.`,
+          } : undefined,
+        };
+
+        fetchedResults.push(result);
+
+        // Update state incrementally to show results as they arrive
+        setResults(currentResults => {
+            return currentResults.map(r => r.connectionId === id ? result : r);
+        });
+      }
+
 
     } catch (error) {
         console.error("Comparison failed:", error);
@@ -149,24 +202,30 @@ export default function ComparePage() {
             description: "An error occurred while fetching model responses. Please try again.",
             variant: "destructive",
         });
-        setShowResults(false); // Hide results section on error
+         setResults(prevResults => prevResults.map(r => ({ ...r, status: 'error' }))); // Mark failed ones as error
     } finally {
         setIsLoading(false);
+         // Ensure all final results have 'complete' or 'error' status
+         setResults(currentResults => currentResults.map(r => ({
+             ...r,
+             status: r.status === 'running' ? 'error' : r.status // Mark unfinished as error
+         })));
     }
   };
 
 
   // Placeholder functions for toolbar buttons
-  const handleLogsClick = () => toast({ title: "Action: Show Logs" });
-  const handleVerifyClick = () => toast({ title: "Action: Verify" });
-  const handlePaintClick = () => toast({ title: "Action: Paint" });
-  const handleTogetherApiClick = () => toast({ title: "Action: Together API" });
-  const handleApiTestClick = () => toast({ title: "Action: API Test" });
+  const handleLogsClick = () => toast({ title: "Action: Show Logs (Not Implemented)" });
+  const handleVerifyClick = () => toast({ title: "Action: Verify (Not Implemented)" });
+  const handlePaintClick = () => toast({ title: "Action: Paint (Not Implemented)" });
+  const handleTogetherApiClick = () => toast({ title: "Action: Together API (Not Implemented)" });
+  const handleApiTestClick = () => toast({ title: "Action: API Test (Not Implemented)" });
   const handleRefreshClick = () => {
     toast({ title: "Action: Refresh" });
-    // Potentially re-run the last comparison or clear state
+    // Re-run last comparison or clear state (clearing for now)
     setShowResults(false);
     setResults([]);
+    // Consider keeping the prompt and selected models?
   };
 
   return (
@@ -176,15 +235,10 @@ export default function ComparePage() {
           Model Comparison
         </h1>
          {/* Toolbar */}
-         <div className="flex items-center space-x-2 border border-border rounded-md p-1 bg-card">
-             <Button variant="ghost" size="sm" onClick={handleLogsClick} aria-label="Show Logs">
-                <FileText className="h-4 w-4" />
-             </Button>
+         <div className="flex items-center space-x-2 border border-border rounded-md p-1 bg-card/80 backdrop-blur-sm">
+             {/* Removed Paintbrush and FileText as per image */}
              <Button variant="ghost" size="sm" onClick={handleVerifyClick} aria-label="Verify">
-                 <CheckSquare className="h-4 w-4" />
-             </Button>
-             <Button variant="ghost" size="sm" onClick={handlePaintClick} aria-label="Paint">
-                <Paintbrush className="h-4 w-4" />
+                 <CheckSquare className="h-4 w-4" /> Verify
              </Button>
              <Separator orientation="vertical" className="h-6" />
              <Button variant="ghost" size="sm" onClick={handleTogetherApiClick}>
@@ -210,54 +264,40 @@ export default function ComparePage() {
         isLoading={isLoading}
       />
 
+       {/* Responses Section - Render Result Cards */}
+       {showResults && results.length > 0 && (
+          <>
+            <Separator className="my-8 md:my-12" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {results.map(res => (
+                <ResultCard key={res.connectionId} result={res} isLoading={isLoading && res.status === 'running'} />
+              ))}
+            </div>
+          </>
+       )}
+
+
        {/* Separator */}
        {showResults && <Separator className="my-8 md:my-12" />}
 
-      {/* Performance Metrics Section */}
+      {/* Performance Metrics Section - Render Chart */}
       {showResults && (
-        <Card className="shadow-lg border-border">
-          <CardHeader>
-            <CardTitle>Performance Metrics</CardTitle>
-            <CardDescription>
-              Visualizing model performance and responses.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="min-h-[200px] flex items-center justify-center">
-            {isLoading && results.length === 0 ? (
-              <div className="flex flex-col items-center text-center text-muted-foreground">
-                <svg className="animate-spin h-8 w-8 mb-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p>Generating responses and analyzing performance...</p>
-              </div>
-            ) : !isLoading && results.length === 0 ? (
-              <div className="flex flex-col items-center text-center text-muted-foreground">
-                <BarChart className="h-12 w-12 mb-4" />
-                <h3 className="text-lg font-semibold mb-1">No Performance Data</h3>
-                <p>Run a comparison to see performance metrics visualized here.</p>
-              </div>
-            ) : (
-               // TODO: Render actual comparison results and charts here
-               <div className="w-full space-y-4">
-                   <p className="text-center text-muted-foreground">Comparison results will be displayed here.</p>
-                   {/* Example of showing results (replace with actual components/charts) */}
-                   {results.map(res => (
-                       <div key={res.connectionId} className="p-4 border rounded-md bg-card/50">
-                           <h4 className="font-semibold">{res.connectionName}</h4>
-                           <p className="text-sm text-muted-foreground">Response Time: {res.responseTime}ms | Speed: {res.tokensPerSecond} t/s</p>
-                           <p className="mt-2 text-sm prose prose-sm max-w-none prose-invert">{res.output}</p>
-                           {res.rating && (
-                               <div className="mt-2 text-xs italic text-muted-foreground">
-                                   AI Rating: {res.rating.rating}/10 - {res.rating.explanation}
-                               </div>
-                           )}
-                       </div>
-                   ))}
-               </div>
-            )}
-          </CardContent>
-        </Card>
+          <PerformanceChart results={results.filter(r => r.status === 'complete')} isLoading={isLoading} />
+      )}
+
+       {/* Placeholder when no results are shown yet */}
+      {!showResults && (
+         <Card className="mt-8 md:mt-12 shadow-lg border-border bg-card/50">
+             <CardHeader>
+                 <CardTitle>Performance Metrics</CardTitle>
+                 <CardDescription>Visualizing model performance and responses.</CardDescription>
+             </CardHeader>
+             <CardContent className="min-h-[200px] flex flex-col items-center justify-center text-center text-muted-foreground">
+                 <BarChart className="h-12 w-12 mb-4" />
+                 <h3 className="text-lg font-semibold mb-1">Ready to Compare</h3>
+                 <p>Enter a prompt, select models, and click "Compare Models" to see results and performance metrics.</p>
+             </CardContent>
+         </Card>
       )}
     </main>
   );
