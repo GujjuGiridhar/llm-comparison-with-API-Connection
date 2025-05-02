@@ -133,9 +133,10 @@ export default function ComparePage() {
     }
 };
 
-  const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
+ const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
     console.log("Comparison submitted:", data);
     const startTime = performance.now(); // Start timing the whole comparison
+    let currentResultsState: PerformanceResult[] = []; // Variable to hold the latest results state
 
     if (data.selectedConnectionIds.length === 0) {
         toast({
@@ -156,101 +157,141 @@ export default function ComparePage() {
 
     setIsLoading(true);
     setShowResults(true);
-    setResults([]); // Clear previous results, but keep showing the section
 
-    // Simulate API calls and AI rating for selected models
+    // Generate initial loading state for all selected models
+    const initialLoadingResults: PerformanceResult[] = data.selectedConnectionIds.map(id => {
+        const conn = connections.find(c => c.id === id);
+        return {
+            connectionId: id,
+            connectionName: conn?.connectionName || `Model ${id.substring(0, 5)}`,
+            modelName: conn?.model || 'unknown',
+            status: 'running' as 'running',
+            // Initialize other fields as needed or leave undefined
+            processingTime: undefined,
+            responseTime: undefined,
+            tokensPerSecond: undefined,
+            totalTokens: undefined,
+            promptTokens: undefined,
+            completionTokens: undefined,
+            elapsedTime: undefined,
+            output: "...",
+        };
+    });
+    setResults(initialLoadingResults);
+    currentResultsState = initialLoadingResults; // Update tracker
+
     try {
-      // Generate mock results immediately for loading state
-      const loadingResults: PerformanceResult[] = data.selectedConnectionIds.map(id => {
-          const conn = connections.find(c => c.id === id);
-          return {
-              connectionId: id,
-              connectionName: conn?.connectionName || `Model ${id.substring(0, 5)}`,
-              modelName: conn?.model || 'unknown', // Add modelName
-              // Initial empty/loading values
-              processingTime: 0,
-              responseTime: 0,
-              tokensPerSecond: 0,
-              totalTokens: 0,
-              promptTokens: 0,
-              completionTokens: 0,
-              elapsedTime: 0,
-              output: "...", // Placeholder for loading output
-              status: 'running' as 'running',
-          };
-      });
-       setResults(loadingResults); // Show loading cards
-
-      // In a real app, you'd map over selectedConnectionIds and make API calls concurrently
-      // For now, simulate fetching results one by one with delays
-
-      const fetchedResults: PerformanceResult[] = [];
-      for (const id of data.selectedConnectionIds) {
+      // Simulate fetching results for each selected model
+      const resultPromises = data.selectedConnectionIds.map(async (id) => {
         const conn = connections.find(c => c.id === id);
         const name = conn?.connectionName || `Model ${id.substring(0, 5)}`;
         const modelName = conn?.model || 'unknown';
+        let result: PerformanceResult | null = null; // Initialize result as null
 
-        // Simulate API call delay
-        const delay = 500 + Math.random() * 2500; // 0.5s to 3s
-        await new Promise(resolve => setTimeout(resolve, delay));
+        try {
+          // Simulate API call delay
+          const delay = 500 + Math.random() * 2500; // 0.5s to 3s
+          await new Promise(resolve => setTimeout(resolve, delay));
 
-        // Generate mock performance data
-        const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
-         // Simulate response time slightly earlier than processing time
-        const responseTime = Math.max(50, parseFloat((delay * (0.1 + Math.random() * 0.3)).toFixed(0))); // e.g., 10-40% of total delay, in ms
-        const completionTokens = 5 + Math.floor(Math.random() * 500);
-        const promptTokens = data.prompt.split(/\s+/).length; // Rough estimate
-        const totalTokens = promptTokens + completionTokens;
-        const tokensPerSecond = parseFloat((completionTokens / processingTime).toFixed(1)) || 0;
-        const elapsedTime = processingTime; // Simplified
+          // Simulate an error for one of the models sometimes
+          if (Math.random() < 0.1) { // 10% chance of error
+              throw new Error("Simulated API Error");
+          }
 
-         const mockOutput = `Mock response from ${name} (${modelName}) for prompt: "${data.prompt}".\n\nGenerated ${completionTokens} tokens in ${processingTime}s. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. ${Math.random() > 0.5 ? 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' : ''}`;
+          // Generate mock performance data
+          const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
+          const responseTime = Math.max(50, parseFloat((delay * (0.1 + Math.random() * 0.3)).toFixed(0))); // e.g., 10-40% of total delay, in ms
+          const completionTokens = 5 + Math.floor(Math.random() * 500);
+          const promptTokens = data.prompt.split(/\s+/).length; // Rough estimate
+          const totalTokens = promptTokens + completionTokens;
+          const tokensPerSecond = parseFloat((completionTokens / processingTime).toFixed(1)) || 0;
+          const elapsedTime = processingTime; // Simplified
 
-        const result: PerformanceResult = {
-          connectionId: id,
-          connectionName: name,
-          modelName: modelName, // Include modelName
-          processingTime: processingTime,
-          responseTime: responseTime, // In ms
-          tokensPerSecond: tokensPerSecond,
-          totalTokens: totalTokens,
-          promptTokens: promptTokens,
-          completionTokens: completionTokens,
-          elapsedTime: elapsedTime,
-          output: mockOutput,
-          status: 'complete' as 'complete',
-          // Simulate optional AI rating (less frequent)
-          rating: Math.random() > 0.7 ? {
-            rating: parseFloat((5 + Math.random() * 5).toFixed(1)), // 5.0 to 10.0
-            explanation: `AI explanation for ${name}'s rating. It performed adequately.`,
-          } : undefined,
-        };
+          const mockOutput = `Mock response from ${name} (${modelName}) for prompt: "${data.prompt}".\n\nGenerated ${completionTokens} tokens in ${processingTime}s. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ${Math.random() > 0.5 ? 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.' : ''}`;
 
-        fetchedResults.push(result);
+          result = {
+            connectionId: id,
+            connectionName: name,
+            modelName: modelName,
+            processingTime: processingTime,
+            responseTime: responseTime,
+            tokensPerSecond: tokensPerSecond,
+            totalTokens: totalTokens,
+            promptTokens: promptTokens,
+            completionTokens: completionTokens,
+            elapsedTime: elapsedTime,
+            output: mockOutput,
+            status: 'complete' as 'complete',
+            rating: Math.random() > 0.7 ? {
+              rating: parseFloat((5 + Math.random() * 5).toFixed(1)),
+              explanation: `AI explanation for ${name}'s rating.`,
+            } : undefined,
+          };
 
-        // Update state incrementally to show results as they arrive
-        setResults(currentResults => {
-            return currentResults.map(r => r.connectionId === id ? result : r);
+        } catch (error: any) {
+           console.error(`Error fetching result for ${name}:`, error);
+           result = { // Create an error result object
+               connectionId: id,
+               connectionName: name,
+               modelName: modelName,
+               status: 'error' as 'error',
+               errorMessage: error.message || 'Request failed or timed out.',
+                // Set performance metrics to undefined or 0 for errors
+               processingTime: undefined,
+               responseTime: undefined,
+               tokensPerSecond: undefined,
+               totalTokens: undefined,
+               promptTokens: data.prompt.split(/\s+/).length, // Prompt tokens might still be known
+               completionTokens: undefined,
+               elapsedTime: undefined, // Could potentially track error time if needed
+           };
+        }
+
+        // Update state incrementally as each promise resolves or rejects
+        setResults(prevResults => {
+            const updated = prevResults.map(r => r.connectionId === id ? result! : r);
+            currentResultsState = updated; // Update tracker
+            return updated;
         });
-      }
+        return result; // Return the result (or error object)
+      });
 
-        // After all results are fetched (or failed)
+      // Wait for all promises to settle (complete or error)
+      await Promise.allSettled(resultPromises);
+
+    } catch (error) { // Catch errors in the overall setup/Promise handling (less likely here)
+        console.error("Comparison failed:", error);
+        toast({
+            title: "Comparison Failed",
+            description: "An unexpected error occurred during the comparison process.",
+            variant: "destructive",
+        });
+         // Mark any remaining 'running' tasks as error
+         setResults(prevResults => {
+            const updated = prevResults.map(r =>
+                r.status === 'running' ? { ...r, status: 'error', errorMessage: 'Overall comparison process failed.' } : r
+            );
+            currentResultsState = updated; // Update tracker
+            return updated;
+        });
+    } finally {
+        setIsLoading(false);
         const endTime = performance.now();
         const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3)); // Total comparison duration in seconds
 
-        // Create log entry using the final state of 'results' to capture errors too
-        const finalResultsForLog = results.map(r => ({
-            modelId: r.connectionId,
-            modelName: r.modelName,
-            responseTime: r.responseTime,
-            tokensPerSecond: r.tokensPerSecond,
-            totalTokens: r.totalTokens,
-            promptTokens: r.promptTokens,
-            completionTokens: r.completionTokens,
-            processingTime: r.processingTime,
-            status: r.status, // Capture the final status (complete or error)
-            errorMessage: r.errorMessage, // Include error message if any
-        }));
+         // Use the final tracked state for logging
+         const finalResultsForLog = currentResultsState.map(r => ({
+             modelId: r.connectionId,
+             modelName: r.modelName,
+             responseTime: r.responseTime,
+             tokensPerSecond: r.tokensPerSecond,
+             totalTokens: r.totalTokens,
+             promptTokens: r.promptTokens,
+             completionTokens: r.completionTokens,
+             processingTime: r.processingTime,
+             status: r.status, // Use the final status (complete or error)
+             errorMessage: r.errorMessage, // Include error message if any
+         }));
 
         const newLogEntry: ComparisonLog = {
             id: `comparison-${Date.now()}`,
@@ -266,60 +307,6 @@ export default function ComparePage() {
            saveLogs(updatedLogs); // Save the updated logs
            return updatedLogs;
        });
-
-
-    } catch (error) {
-        console.error("Comparison failed:", error);
-        toast({
-            title: "Comparison Failed",
-            description: "An error occurred while fetching model responses. Please try again.",
-            variant: "destructive",
-        });
-         // Mark running tasks as error, keep existing complete/error statuses
-         setResults(currentResults =>
-            currentResults.map(r =>
-                r.status === 'running' ? { ...r, status: 'error', errorMessage: 'Request failed or timed out.' } : r
-            )
-        );
-
-         // Log the failure as well
-         const endTime = performance.now();
-         const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3));
-         const finalResultsForLog = results.map(r => ({ // Use current state of results
-             modelId: r.connectionId,
-             modelName: r.modelName,
-             responseTime: r.responseTime,
-             tokensPerSecond: r.tokensPerSecond,
-             totalTokens: r.totalTokens,
-             promptTokens: r.promptTokens,
-             completionTokens: r.completionTokens,
-             processingTime: r.processingTime,
-             status: r.status === 'running' ? 'error' : r.status, // Mark running as error
-             errorMessage: r.status === 'running' ? 'Request failed or timed out.' : r.errorMessage,
-         }));
-
-         const newLogEntry: ComparisonLog = {
-             id: `comparison-failed-${Date.now()}`,
-             timestamp: new Date().toISOString(),
-             duration: totalDuration,
-             prompt: data.prompt,
-             results: finalResultsForLog,
-         };
-         setComparisonLogs(prevLogs => {
-             const updatedLogs = [newLogEntry, ...prevLogs].slice(0, MAX_LOGS);
-             saveLogs(updatedLogs);
-             return updatedLogs;
-         });
-
-
-    } finally {
-        setIsLoading(false);
-         // Ensure all final results have 'complete' or 'error' status
-         setResults(currentResults => currentResults.map(r => ({
-             ...r,
-             status: r.status === 'running' ? 'error' : r.status, // Mark unfinished as error
-             errorMessage: r.status === 'running' ? 'Request timed out or failed during finalization.' : r.errorMessage,
-         })));
     }
   };
 
