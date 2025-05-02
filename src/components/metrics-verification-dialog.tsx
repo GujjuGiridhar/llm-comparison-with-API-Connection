@@ -186,7 +186,7 @@ export function MetricsVerificationDialog({
                                Raw Stats Per Model
                            </button>
                            {showRawStats && (
-                               <ScrollArea className="mt-2 max-h-48 pr-3"> {/* Keep max-height here for the accordion */}
+                               <ScrollArea className="mt-2 pr-3"> {/* Removed max-h-48 */}
                                    <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                                        {JSON.stringify(aggregatedMetrics.rawStats, null, 2)}
                                    </pre>
@@ -202,9 +202,8 @@ export function MetricsVerificationDialog({
             </TabsContent>
 
             <TabsContent value="rawLog">
-              {/* Removed fixed max-height from ScrollArea, rely on parent scrolling */}
-              {/* Added whitespace-pre-wrap and break-all to pre tag for better wrapping */}
-              <ScrollArea className="border rounded-md">
+              {/* ScrollArea wrapping the pre tag for the Raw Log Data tab */}
+              <ScrollArea className="border rounded-md max-h-[60vh]"> {/* Added max-height to ScrollArea */}
                   <pre className="text-xs bg-muted/50 p-4 overflow-x-auto whitespace-pre-wrap break-all">
                     {logEntry ? JSON.stringify(logEntry, null, 2) : "No log data available."}
                   </pre>
