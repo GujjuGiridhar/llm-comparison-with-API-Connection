@@ -131,8 +131,9 @@ export function MetricsVerificationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl p-0">
-        <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
+      {/* Increased max-height and set height to allow content to define size */}
+      <DialogContent className="max-w-2xl p-0 max-h-[90vh] h-auto flex flex-col">
+        <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between flex-shrink-0">
           <DialogTitle className="text-lg">Metrics Verification</DialogTitle>
            <div className="flex items-center gap-2">
              <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -144,70 +145,74 @@ export function MetricsVerificationDialog({
            </div>
         </DialogHeader>
 
-        <Tabs defaultValue="verification" className="w-full p-4">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="verification">Verification Results</TabsTrigger>
-            <TabsTrigger value="rawLog">Raw Log Data</TabsTrigger>
-          </TabsList>
+        {/* Make Tabs container flexible */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <Tabs defaultValue="verification" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="verification">Verification Results</TabsTrigger>
+              <TabsTrigger value="rawLog">Raw Log Data</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="verification">
-            <Card className="border-border bg-card/50">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base font-medium flex items-center">
-                  {logEntry ? `Results for Comparison ${logEntry.id.replace('comparison-','')}` : "No Data Available"}
-                  {!logEntry && <AlertCircle className="h-4 w-4 ml-2 text-yellow-500" />}
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">
-                  {formatTimestamp(logEntry?.timestamp)}
-                </span>
-              </CardHeader>
-              <CardContent>
-                {logEntry ? (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span>Total Tokens:</span> <span className="font-mono">{aggregatedMetrics.totalTokens}</span></div>
-                    <div className="flex justify-between"><span>Prompt Tokens:</span> <span className="font-mono">{aggregatedMetrics.promptTokens}</span></div>
-                    <div className="flex justify-between"><span>Completion Tokens:</span> <span className="font-mono">{aggregatedMetrics.completionTokens}</span></div>
-                    <div className="flex justify-between"><span>Avg. Processing Time:</span> <span className="font-mono">{aggregatedMetrics.avgProcessingTime.toFixed(3)}s</span></div>
-                    <div className="flex justify-between"><span>Avg. Response Time:</span> <span className="font-mono">{aggregatedMetrics.avgResponseTime.toFixed(2)}ms</span></div>
-                    <div className="flex justify-between"><span>Avg. Tokens/Second:</span> <span className="font-mono">{aggregatedMetrics.avgTokensPerSecond.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span>Expected Tokens/Second:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.expectedTokensPerSecond.toFixed(2)}</span></div> {/* Marked yellow as placeholder */}
-                    <div className="flex justify-between"><span>Accuracy:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.accuracy}</span></div> {/* Marked yellow as placeholder */}
+            <TabsContent value="verification">
+              <Card className="border-border bg-card/50">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-base font-medium flex items-center">
+                    {logEntry ? `Results for Comparison ${logEntry.id.replace('comparison-','')}` : "No Data Available"}
+                    {!logEntry && <AlertCircle className="h-4 w-4 ml-2 text-yellow-500" />}
+                  </CardTitle>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimestamp(logEntry?.timestamp)}
+                  </span>
+                </CardHeader>
+                <CardContent>
+                  {logEntry ? (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span>Total Tokens:</span> <span className="font-mono">{aggregatedMetrics.totalTokens}</span></div>
+                      <div className="flex justify-between"><span>Prompt Tokens:</span> <span className="font-mono">{aggregatedMetrics.promptTokens}</span></div>
+                      <div className="flex justify-between"><span>Completion Tokens:</span> <span className="font-mono">{aggregatedMetrics.completionTokens}</span></div>
+                      <div className="flex justify-between"><span>Avg. Processing Time:</span> <span className="font-mono">{aggregatedMetrics.avgProcessingTime.toFixed(3)}s</span></div>
+                      <div className="flex justify-between"><span>Avg. Response Time:</span> <span className="font-mono">{aggregatedMetrics.avgResponseTime.toFixed(2)}ms</span></div>
+                      <div className="flex justify-between"><span>Avg. Tokens/Second:</span> <span className="font-mono">{aggregatedMetrics.avgTokensPerSecond.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>Expected Tokens/Second:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.expectedTokensPerSecond.toFixed(2)}</span></div> {/* Marked yellow as placeholder */}
+                      <div className="flex justify-between"><span>Accuracy:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.accuracy}</span></div> {/* Marked yellow as placeholder */}
 
-                    {/* Raw Stats Accordion */}
-                    <div className="pt-4">
-                         <button
-                             onClick={() => setShowRawStats(!showRawStats)}
-                             className="flex items-center text-xs text-muted-foreground hover:text-foreground w-full text-left"
-                         >
-                             {showRawStats ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
-                             Raw Stats Per Model
-                         </button>
-                         {showRawStats && (
-                             <ScrollArea className="mt-2 max-h-48 pr-3">
-                                 <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-x-auto">
-                                     {JSON.stringify(aggregatedMetrics.rawStats, null, 2)}
-                                 </pre>
-                             </ScrollArea>
-                         )}
+                      {/* Raw Stats Accordion */}
+                      <div className="pt-4">
+                           <button
+                               onClick={() => setShowRawStats(!showRawStats)}
+                               className="flex items-center text-xs text-muted-foreground hover:text-foreground w-full text-left"
+                           >
+                               {showRawStats ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
+                               Raw Stats Per Model
+                           </button>
+                           {showRawStats && (
+                               <ScrollArea className="mt-2 max-h-48 pr-3">
+                                   <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-x-auto">
+                                       {JSON.stringify(aggregatedMetrics.rawStats, null, 2)}
+                                   </pre>
+                               </ScrollArea>
+                           )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm text-center py-8">No comparison log selected or available for verification.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  ) : (
+                    <p className="text-muted-foreground text-sm text-center py-8">No comparison log selected or available for verification.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="rawLog">
-             <ScrollArea className="max-h-96">
-                 <pre className="text-xs bg-muted/50 p-4 rounded-md overflow-x-auto">
-                   {logEntry ? JSON.stringify(logEntry, null, 2) : "No log data available."}
-                 </pre>
-             </ScrollArea>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="rawLog">
+              {/* Set max height for scroll area */}
+              <ScrollArea className="max-h-96 border rounded-md">
+                  <pre className="text-xs bg-muted/50 p-4 overflow-x-auto">
+                    {logEntry ? JSON.stringify(logEntry, null, 2) : "No log data available."}
+                  </pre>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </div>
 
-        <DialogFooter className="p-4 border-t border-border">
+        <DialogFooter className="p-4 border-t border-border flex-shrink-0">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
