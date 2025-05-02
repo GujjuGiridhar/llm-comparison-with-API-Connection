@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Trash2, Download, Search, Filter, Clock } from "lucide-react";
+import { RefreshCw, Trash2, Download, Search, Filter, Clock, Cpu } from "lucide-react"; // Added Cpu icon for model
 import type { ComparisonLog } from "@/types/compare";
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils"; // Import cn
@@ -35,8 +35,20 @@ type LogViewerProps = {
 export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterType, setFilterType] = React.useState("all"); // 'all', 'complete', 'error'
+  const [filterModel, setFilterModel] = React.useState("all"); // 'all', or specific model name
   const [sortOrder, setSortOrder] = React.useState("newest"); // 'newest', 'oldest'
   const [selectedLogId, setSelectedLogId] = React.useState<string | null>(null);
+
+  // Get unique model names from logs for the filter dropdown
+  const uniqueModelNames = React.useMemo(() => {
+    const modelSet = new Set<string>();
+    logs.forEach(log => {
+      log.results.forEach(result => {
+        modelSet.add(result.modelName);
+      });
+    });
+    return Array.from(modelSet).sort();
+  }, [logs]);
 
   const filteredAndSortedLogs = React.useMemo(() => {
     return logs
@@ -52,7 +64,11 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
           (filterType === 'complete' && log.results.every(res => res.status === 'complete')) ||
           (filterType === 'error' && log.results.some(res => res.status === 'error'));
 
-        return searchMatch && typeMatch;
+        // Filter by model name
+        const modelMatch = filterModel === 'all' ||
+            log.results.some(res => res.modelName === filterModel);
+
+        return searchMatch && typeMatch && modelMatch; // Added modelMatch
       })
       .sort((a, b) => {
         // Sort by timestamp
@@ -60,7 +76,7 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
         const dateB = new Date(b.timestamp).getTime();
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
-  }, [logs, searchTerm, filterType, sortOrder]);
+  }, [logs, searchTerm, filterType, filterModel, sortOrder]); // Added filterModel dependency
 
   // Select the first log by default if none is selected or the selected one is filtered out
   React.useEffect(() => {
@@ -98,23 +114,25 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
   };
 
   const handleRefresh = () => {
-    // In a real app, this might re-fetch logs if they come from a server
-    // For localStorage, it's already up-to-date via state, maybe just reset filters?
+    // Reset all filters and sorting to default
     setSearchTerm("");
     setFilterType("all");
+    setFilterModel("all"); // Reset model filter
     setSortOrder("newest");
+    // Selection will reset automatically via useEffect
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
+      <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0"> {/* Increased width and height slightly */}
         <DialogHeader className="p-4 border-b border-border">
           <DialogTitle className="text-lg">Log Viewer</DialogTitle>
         </DialogHeader>
 
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border flex-wrap">
-          <div className="flex items-center gap-2">
+           {/* Left Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button variant="outline" size="sm" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4 mr-1" /> Refresh
             </Button>
@@ -125,7 +143,10 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
               <Download className="h-4 w-4 mr-1" /> Download
             </Button>
           </div>
-          <div className="flex items-center gap-2 flex-grow sm:flex-grow-0">
+
+           {/* Right Filters */}
+          <div className="flex items-center gap-2 flex-grow justify-end flex-wrap">
+             {/* Search Input */}
             <div className="relative flex-grow sm:flex-grow-0">
               <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -133,22 +154,39 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
                 placeholder="Search logs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-9 w-full sm:w-48"
+                className="pl-8 h-9 w-full min-w-[150px] sm:w-48"
               />
             </div>
+             {/* Status Filter */}
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[100px] h-9">
+              <SelectTrigger className="w-auto min-w-[110px] h-9">
                  <Filter className="h-3 w-3 mr-1 text-muted-foreground inline-block" />
-                <SelectValue placeholder="Filter" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="complete">Complete</SelectItem>
                 <SelectItem value="error">Errors</SelectItem>
               </SelectContent>
             </Select>
+            {/* Model Filter */}
+             <Select value={filterModel} onValueChange={setFilterModel}>
+              <SelectTrigger className="w-auto min-w-[130px] h-9">
+                 <Cpu className="h-3 w-3 mr-1 text-muted-foreground inline-block" />
+                <SelectValue placeholder="Model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Models</SelectItem>
+                {uniqueModelNames.map(modelName => (
+                    <SelectItem key={modelName} value={modelName}>
+                        {modelName}
+                    </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Sort Order */}
              <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-[120px] h-9">
+              <SelectTrigger className="w-auto min-w-[110px] h-9">
                  <Clock className="h-3 w-3 mr-1 text-muted-foreground inline-block" />
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
@@ -183,15 +221,19 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
                               variant={log.results.some(r => r.status === 'error') ? 'destructive' : 'secondary'}
                               className={`text-xs whitespace-nowrap ${log.results.some(r => r.status === 'error') ? '' : 'bg-green-600/20 text-green-400 border-green-600/30'}`}
                            >
-                              {log.results.some(r => r.status === 'error') ? 'Error' : 'Complete'} {/* Changed 'Model' to 'Complete' for success */}
+                              {log.results.some(r => r.status === 'error') ? 'Error' : 'Complete'}
                            </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground">
                            {formatTimestamp(log.timestamp)}
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-1" title={log.prompt}>
-                          {log.prompt}
+                          Prompt: {log.prompt}
                       </p>
+                      {/* Optionally show models included */}
+                      {/* <p className="text-xs text-muted-foreground truncate mt-1">
+                          Models: {log.results.map(r => r.modelName).join(', ')}
+                      </p> */}
                   </button>
                ))}
                  {filteredAndSortedLogs.length === 0 && (
@@ -207,30 +249,30 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
                  <pre className="text-xs bg-muted/50 p-4 rounded-md overflow-x-auto">
                    {JSON.stringify(
                        {
-                           id: selectedLog.id, // Include ID
-                           timestamp: selectedLog.timestamp, // Include timestamp
+                           id: selectedLog.id,
+                           timestamp: selectedLog.timestamp,
                            duration: selectedLog.duration,
-                           prompt: selectedLog.prompt, // Include prompt
+                           prompt: selectedLog.prompt,
                            results: selectedLog.results.map(r => ({
                                modelId: r.modelId,
                                modelName: r.modelName,
-                               status: r.status, // Include status
+                               status: r.status,
                                responseTime: r.responseTime,
                                tokensPerSecond: r.tokensPerSecond,
                                totalTokens: r.totalTokens,
                                promptTokens: r.promptTokens,
                                completionTokens: r.completionTokens,
                                processingTime: r.processingTime,
-                               errorMessage: r.errorMessage, // Include error message if present
+                               errorMessage: r.errorMessage,
                            })),
                        },
-                        null, // Replacer function
-                        2     // Indentation spaces
+                        null,
+                        2
                     )}
                  </pre>
                ) : (
                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                   {logs.length === 0 ? "No logs available." : "Select a log to view details."}
+                   {logs.length === 0 ? "No logs available." : "Select a log to view details or adjust filters."}
                  </div>
                )}
              </div>
