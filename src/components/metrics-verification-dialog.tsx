@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, Download, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
 import type { ComparisonLog } from "@/types/compare";
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
@@ -52,7 +53,9 @@ export function MetricsVerificationDialog({
   const formatTimestamp = (isoString: string | undefined): string => {
     if (!isoString) return "N/A";
     try {
-      return format(new Date(isoString), "HH:mm:ss"); // Format as HH:MM:SS
+      // Use date-fns format, assuming timestamp is in ISO format
+      // Format as YYYY/MM/DD, HH:MM:SS
+      return format(new Date(isoString), "yyyy/MM/dd, HH:mm:ss");
     } catch {
       return "Invalid Date";
     }
@@ -167,8 +170,8 @@ export function MetricsVerificationDialog({
                     <div className="flex justify-between"><span>Avg. Processing Time:</span> <span className="font-mono">{aggregatedMetrics.avgProcessingTime.toFixed(3)}s</span></div>
                     <div className="flex justify-between"><span>Avg. Response Time:</span> <span className="font-mono">{aggregatedMetrics.avgResponseTime.toFixed(2)}ms</span></div>
                     <div className="flex justify-between"><span>Avg. Tokens/Second:</span> <span className="font-mono">{aggregatedMetrics.avgTokensPerSecond.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span>Expected Tokens/Second:</span> <span className="font-mono">{aggregatedMetrics.expectedTokensPerSecond.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span>Accuracy:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.accuracy}</span></div>
+                    <div className="flex justify-between"><span>Expected Tokens/Second:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.expectedTokensPerSecond.toFixed(2)}</span></div> {/* Marked yellow as placeholder */}
+                    <div className="flex justify-between"><span>Accuracy:</span> <span className="font-mono text-yellow-500">{aggregatedMetrics.accuracy}</span></div> {/* Marked yellow as placeholder */}
 
                     {/* Raw Stats Accordion */}
                     <div className="pt-4">
