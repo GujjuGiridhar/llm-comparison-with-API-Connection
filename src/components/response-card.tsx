@@ -14,16 +14,16 @@ type ResponseCardProps = {
 
 export function ResponseCard({ title, response, rating, explanation, isLoading }: ResponseCardProps) {
   return (
-    <Card className="flex flex-col h-full shadow-md transition-all duration-300 ease-in-out">
+    <Card className="flex flex-col h-full shadow-lg bg-card border-border transition-all duration-300 ease-in-out">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow overflow-y-auto prose prose-sm max-w-none">
+      <CardContent className="flex-grow overflow-y-auto prose prose-sm max-w-none prose-invert"> {/* Added prose-invert for dark mode */}
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-full bg-muted" />
+            <Skeleton className="h-4 w-full bg-muted" />
+            <Skeleton className="h-4 w-3/4 bg-muted" />
           </div>
         ) : response ? (
           <p className="text-foreground/90 whitespace-pre-wrap">{response}</p>
@@ -32,17 +32,18 @@ export function ResponseCard({ title, response, rating, explanation, isLoading }
         )}
       </CardContent>
       {(isLoading || rating !== undefined) && (
-        <CardFooter className="mt-auto pt-4 border-t">
+        <CardFooter className="mt-auto pt-4 border-t border-border">
           {isLoading ? (
             <div className="flex items-center space-x-2 w-full">
-              <Skeleton className="h-6 w-16 rounded-md" />
-              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-6 w-16 rounded-md bg-muted" />
+              <Skeleton className="h-4 w-full bg-muted" />
             </div>
           ) : (
             rating !== undefined && (
               <div className="flex flex-col w-full space-y-2">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+                  {/* Using primary for badge as per theme intention */}
+                  <Badge variant="default" className="bg-primary text-primary-foreground">
                     <Star className="mr-1 h-4 w-4 fill-current" /> {rating.toFixed(1)}/10
                   </Badge>
                    <p className="text-sm text-muted-foreground">AI Quality Rating</p>
