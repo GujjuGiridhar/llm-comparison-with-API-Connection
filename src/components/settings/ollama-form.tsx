@@ -25,12 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Using Alert for the warning/success
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const OllamaFormSchema = z.object({
   connectionName: z.string().min(1, "Connection name is required."),
   baseUrl: z.string().url("Invalid URL.").default("http://localhost:11434"),
-  model: z.string().min(1, "Please select a model after testing the connection."), // Make model required after testing
+  // Model is initially optional, becomes required after successful test with models
+  model: z.string().optional(),
   contextSize: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
     z.number().int().positive().optional().default(4096)
@@ -49,24 +50,35 @@ const OllamaFormSchema = z.object({
     (val) => (val === "" ? undefined : Number(val)),
     z.number().int().positive().optional().default(2048)
   ),
+}).refine(data => {
+    // This refinement makes `model` required if the form is submitted.
+    // We handle the "required after test" logic via button disabling.
+    return !!data.model;
+}, {
+    message: "Please select a model after testing the connection.",
+    path: ["model"], // Path of the error
 });
 
-type OllamaFormValues = z.infer<typeof OllamaFormSchema>;
+
+export type OllamaFormValues = z.infer<typeof OllamaFormSchema>;
 
 type OllamaFormProps = {
   onSubmit: (data: OllamaFormValues) => void;
   onCancel: () => void;
+  initialData?: OllamaFormValues; // Add initialData prop
   isLoading?: boolean;
 };
 
 export function OllamaForm({
   onSubmit,
   onCancel,
+  initialData, // Use initialData
   isLoading = false,
 }: OllamaFormProps) {
   const form = useForm<OllamaFormValues>({
     resolver: zodResolver(OllamaFormSchema),
-    defaultValues: {
+    // Use initialData if provided, otherwise use defaults
+    defaultValues: initialData || {
        connectionName: "New Ollama Connection",
        baseUrl: "http://localhost:11434",
        model: "", // Start with empty model
@@ -80,13 +92,29 @@ export function OllamaForm({
   const [isTesting, setIsTesting] = React.useState(false);
   const [models, setModels] = React.useState<string[]>([]);
   const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(null);
+  const [hasTestedSuccessfullyWithModels, setHasTestedSuccessfullyWithModels] = React.useState(false);
+
+
+   // Pre-populate models and test status if initialData exists and has a model
+   React.useEffect(() => {
+     if (initialData?.model && initialData.baseUrl) {
+       // Simulate a successful test to pre-load models for editing
+       // In a real app, you might fetch models again or trust initialData
+       const mockModels = [initialData.model, "llama3:latest", "mistral:latest", "codegemma:7b"].filter((v, i, a) => a.indexOf(v) === i); // Ensure unique, includes initial model
+       setModels(mockModels);
+       setTestResult({ success: true, message: "Connection previously established." });
+       setHasTestedSuccessfullyWithModels(true);
+       form.setValue('model', initialData.model); // Ensure model is set in the form
+     }
+   }, [initialData, form]);
 
   const handleTestClick = async () => {
     setIsTesting(true);
     setTestResult(null);
     setModels([]);
+    setHasTestedSuccessfullyWithModels(false);
     form.setValue('model', ''); // Reset model selection
-    form.clearErrors('model'); // Clear model validation error
+    form.clearErrors('model'); // Clear model validation error if any
     const baseUrl = form.getValues("baseUrl");
 
     try {
@@ -94,17 +122,16 @@ export function OllamaForm({
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
 
       // --- Mock API Call ---
-      // Simulate success if URL contains 'localhost', otherwise fail.
-      // In a real app, replace this with: `await fetch(baseUrl + '/api/tags')`
       let result: { success: boolean; models: string[]; message?: string };
-      if (baseUrl.includes("localhost")) {
-         // Simulate finding models
-         const mockModels = ["llama3:latest", "mistral:latest", "codegemma:7b"];
+      if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) { // Simple check for mock success
+         const mockModels = ["llama3:latest", "mistral:latest", "codegemma:7b", "phi3:mini"];
          result = { success: true, models: mockModels, message: `Connection successful. Found ${mockModels.length} models.` };
          setModels(mockModels);
-         // Optionally set the first model as default, but only if models were found
          if (mockModels.length > 0) {
-            // form.setValue('model', mockModels[0], { shouldValidate: true }); // Set and validate
+           setHasTestedSuccessfullyWithModels(true);
+           // Optionally select the first model or the initial model if it exists in the list
+           const modelToSelect = initialData?.model && mockModels.includes(initialData.model) ? initialData.model : (mockModels[0] || "");
+           form.setValue('model', modelToSelect, { shouldValidate: true });
          } else {
              result = { success: true, models: [], message: "Connection successful, but no models found on the server." };
          }
@@ -113,32 +140,28 @@ export function OllamaForm({
       }
       // --- End Mock API Call ---
 
-
       setTestResult({ success: result.success, message: result.message || (result.success ? 'Success' : 'Failure') });
 
     } catch (error) {
       console.error("Test connection error:", error);
       setTestResult({ success: false, message: "An error occurred while testing the connection. Check the console for details." });
       setModels([]);
+      setHasTestedSuccessfullyWithModels(false);
     } finally {
       setIsTesting(false);
     }
   };
 
-  // Check if the form is valid *except* for the model field,
-  // which becomes valid only after a successful test with models.
-  const isFormOtherwiseValid = React.useMemo(() => {
-    const errors = form.formState.errors;
-    return Object.keys(errors).length === 0 || (Object.keys(errors).length === 1 && errors.model);
-  }, [form.formState.errors]);
 
    // Determine if the save button should be enabled
-   const canSaveChanges = form.formState.isValid && models.length > 0 && testResult?.success === true;
+   // Requires a successful test AND a selected model
+   const canSaveChanges = form.formState.isValid && hasTestedSuccessfullyWithModels && !!form.watch('model');
 
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <h3 className="text-lg font-medium mb-4 text-foreground">{initialData ? 'Edit' : 'Add'} Ollama Connection</h3>
         {/* Connection Name */}
         <FormField
           control={form.control}
@@ -171,16 +194,18 @@ export function OllamaForm({
                          field.onChange(e);
                          setTestResult(null); // Reset test result on URL change
                          setModels([]); // Clear models on URL change
+                         setHasTestedSuccessfullyWithModels(false); // Reset test success state
                          form.setValue('model', ''); // Reset model selection
+                         form.clearErrors('model');
                      }}
                   />
                 </FormControl>
-                 <Button type="button" variant="outline" onClick={handleTestClick} disabled={isLoading || isTesting || !form.getValues('baseUrl')}>
+                 <Button type="button" variant="outline" onClick={handleTestClick} disabled={isLoading || isTesting || !form.watch('baseUrl')}>
                    {isTesting ? "Testing..." : "Test Connection"}
                  </Button>
               </div>
               <FormDescription>
-                The URL where your Ollama instance is running (e.g., http://localhost:11434 or http://your-server-ip:11434).
+                The URL where your Ollama instance is running.
               </FormDescription>
               <FormMessage /> {/* For URL validation errors */}
             </FormItem>
@@ -207,13 +232,19 @@ export function OllamaForm({
             <FormItem>
               <FormLabel>Model</FormLabel>
               <Select
-                 onValueChange={field.onChange}
-                 value={field.value} // Use controlled value
-                 disabled={isLoading || models.length === 0}
+                 onValueChange={(value) => field.onChange(value)} // Ensure value updates form state
+                 value={field.value || ""} // Use controlled value, default to "" if undefined/null
+                 disabled={isLoading || models.length === 0 || isTesting}
                >
                 <FormControl>
                    <SelectTrigger>
-                     <SelectValue placeholder={isTesting ? "Loading models..." : (models.length > 0 ? "Select a model" : "Test connection to load models")} />
+                     <SelectValue placeholder={
+                       isTesting ? "Loading models..." :
+                       !testResult ? "Test connection first" :
+                       !testResult.success ? "Connection failed" :
+                       models.length === 0 ? "No models found" :
+                       "Select a model"
+                     } />
                    </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -222,9 +253,6 @@ export function OllamaForm({
                        {modelName}
                      </SelectItem>
                    ))}
-                   {models.length === 0 && !isTesting && <SelectItem value="-" disabled>
-                     {testResult?.success === false ? "Connection failed" : "No models found"}
-                    </SelectItem>}
                  </SelectContent>
               </Select>
               <FormDescription>Select the Ollama model to use after testing the connection.</FormDescription>
@@ -243,7 +271,7 @@ export function OllamaForm({
               <FormItem>
                 <FormLabel>Context Size</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="4096" {...field} value={field.value ?? ''} disabled={isLoading} />
+                  <Input type="number" placeholder="4096" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
                 </FormControl>
                  <FormDescription>Max context window size.</FormDescription>
                 <FormMessage />
@@ -261,15 +289,9 @@ export function OllamaForm({
                  <FormControl>
                    <Input placeholder="Auto" {...field} value={field.value ?? ''} onChange={(e) => {
                       const val = e.target.value;
-                      // Allow empty string, 'auto', or positive integers
                       if (val === '' || val.toLowerCase() === 'auto' || /^\d+$/.test(val)) {
-                         const processedVal = val.toLowerCase() === 'auto' ? 'auto' : (val === '' ? '' : Number(val));
-                         // Only update if it's 'auto' or a non-negative number
-                         if (processedVal === 'auto' || (typeof processedVal === 'number' && processedVal >= 0)) {
-                           field.onChange(processedVal);
-                         } else if (val === '') {
-                           field.onChange(undefined); // Treat empty as undefined for potential default value
-                         }
+                         const processedVal = val.toLowerCase() === 'auto' ? 'auto' : (val === '' ? undefined : Number(val));
+                         field.onChange(processedVal);
                       }
                    }} disabled={isLoading} />
                  </FormControl>
@@ -287,7 +309,7 @@ export function OllamaForm({
               <FormItem>
                 <FormLabel>Temperature</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.1" min="0" max="1" placeholder="0.7" {...field} value={field.value ?? ''} disabled={isLoading} />
+                  <Input type="number" step="0.1" min="0" max="1" placeholder="0.7" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
                 </FormControl>
                 <FormDescription>Controls randomness (0-1).</FormDescription>
                 <FormMessage />
@@ -303,7 +325,7 @@ export function OllamaForm({
               <FormItem>
                 <FormLabel>Max Tokens</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="2048" {...field} value={field.value ?? ''} disabled={isLoading} />
+                  <Input type="number" placeholder="2048" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
                 </FormControl>
                  <FormDescription>Max response length.</FormDescription>
                 <FormMessage />
@@ -318,10 +340,11 @@ export function OllamaForm({
             Cancel
           </Button>
           <Button type="submit" disabled={!canSaveChanges || isLoading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-            {isLoading ? "Saving..." : "Update Connection"}
+            {isLoading ? "Saving..." : (initialData ? "Update Connection" : "Save Connection")}
           </Button>
         </div>
       </form>
     </Form>
   );
 }
+```
