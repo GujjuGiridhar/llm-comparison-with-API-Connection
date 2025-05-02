@@ -41,36 +41,42 @@ type PerformanceChartProps = {
 };
 
 // Mock time-series data generation (replace with actual data structure)
+// Update mock generation to handle potentially undefined metric values gracefully
 const generateMockTimeSeries = (results: PerformanceResult[]) => {
-  const timePoints = 10; // Number of data points over time
-  const startTime = new Date().getTime() - (timePoints * 2000); // Start 20 seconds ago
-  const data: any[] = [];
+    const timePoints = 10; // Number of data points over time
+    const startTime = new Date().getTime() - (timePoints * 2000); // Start 20 seconds ago
+    const data: any[] = [];
 
-  for (let i = 0; i < timePoints; i++) {
-    const timestamp = startTime + i * 2000;
-    const timeLabel = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const point: any = { time: timeLabel, timestamp: timestamp };
+    for (let i = 0; i < timePoints; i++) {
+        const timestamp = startTime + i * 2000;
+        const timeLabel = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const point: any = { time: timeLabel, timestamp: timestamp };
 
-    results.forEach(res => {
-      // Simulate metric fluctuation over time
-      const baseTps = res.tokensPerSecond || 0;
-      const baseResp = res.responseTime || 0;
-      const baseProc = res.processingTime || 0;
-      const baseTotal = res.totalTokens || 0;
-      const basePrompt = res.promptTokens || 0;
-      const baseComp = res.completionTokens || 0;
+        results.forEach(res => {
+            // Use optional chaining and default values (e.g., 0)
+            const baseTps = res.tokensPerSecond ?? 0;
+            const baseResp = res.responseTime ?? 0;
+            const baseProc = res.processingTime ?? 0;
+            const baseTotal = res.totalTokens ?? 0;
+            const basePrompt = res.promptTokens ?? 0;
+            const baseComp = res.completionTokens ?? 0;
 
-      point[`${res.connectionId}_tokensPerSecond`] = parseFloat((baseTps * (0.8 + Math.random() * 0.4)).toFixed(1));
-      point[`${res.connectionId}_responseTime`] = Math.round(baseResp * (0.9 + Math.random() * 0.2));
-      point[`${res.connectionId}_processingTime`] = parseFloat((baseProc * (0.9 + Math.random() * 0.2)).toFixed(2));
-      point[`${res.connectionId}_totalTokens`] = baseTotal - Math.floor(Math.random() * (baseTotal * 0.1));
-      point[`${res.connectionId}_promptTokens`] = basePrompt; // Prompt tokens likely constant
-      point[`${res.connectionId}_completionTokens`] = point[`${res.connectionId}_totalTokens`] - basePrompt;
-    });
-    data.push(point);
-  }
-  return data;
+            // Simulate metric fluctuation over time
+            point[`${res.connectionId}_tokensPerSecond`] = parseFloat((baseTps * (0.8 + Math.random() * 0.4)).toFixed(1)) || 0; // Ensure not NaN
+            point[`${res.connectionId}_responseTime`] = Math.round(baseResp * (0.9 + Math.random() * 0.2));
+            point[`${res.connectionId}_processingTime`] = parseFloat((baseProc * (0.9 + Math.random() * 0.2)).toFixed(2)) || 0; // Ensure not NaN
+            // Ensure totalTokens fluctuation doesn't go below promptTokens
+            const simulatedTotal = baseTotal - Math.floor(Math.random() * (baseTotal * 0.1));
+            point[`${res.connectionId}_totalTokens`] = Math.max(basePrompt, simulatedTotal); // Can't be less than prompt tokens
+            point[`${res.connectionId}_promptTokens`] = basePrompt; // Prompt tokens likely constant
+            // Calculate completion tokens based on simulated total
+            point[`${res.connectionId}_completionTokens`] = Math.max(0, point[`${res.connectionId}_totalTokens`] - basePrompt);
+        });
+        data.push(point);
+    }
+    return data;
 };
+
 
 // Generate chart colors dynamically based on number of results
 const generateChartColors = (numColors: number): { [key: string]: string } => {
@@ -92,9 +98,11 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
   // Add zoom state if implementing zoom functionality
   // const [zoomLevel, setZoomLevel] = React.useState({ start: 0, end: 100 });
 
-  const chartData = React.useMemo(() => generateMockTimeSeries(results), [results]);
+  // Filter results to only include those with 'complete' status for chart data generation
+  const completedResults = results.filter(r => r.status === 'complete');
+  const chartData = React.useMemo(() => generateMockTimeSeries(completedResults), [completedResults]);
 
-  // Prepare Chart Config based on results and colors
+  // Prepare Chart Config based on *all* results (for consistent coloring/legend) but only generate data for completed ones
     const chartColors = React.useMemo(() => generateChartColors(results.length), [results.length]);
     const chartConfig = React.useMemo(() => {
         const config: ChartConfig = {};
@@ -117,7 +125,7 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
         let maxVal = -Infinity;
 
         chartData.forEach(point => {
-            results.forEach(res => {
+            completedResults.forEach(res => { // Only use completed results for domain calculation
                 const value = point[`${res.connectionId}_${dataKey}`];
                 if (typeof value === 'number') {
                     minVal = Math.min(minVal, value);
@@ -136,7 +144,7 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
         return [Math.max(0, Math.floor(minVal - padding)), Math.ceil(maxVal + padding)];
     };
 
-    const yAxisDomain = React.useMemo(() => getDomain(selectedMetric), [selectedMetric, chartData, results]);
+    const yAxisDomain = React.useMemo(() => getDomain(selectedMetric), [selectedMetric, chartData, completedResults]); // Use completedResults
 
 
     // Tooltip Formatter
@@ -148,7 +156,11 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
         if (metricInfo?.value.includes('Time')) unit = metricInfo.value.includes('processingTime') ? 's' : 'ms';
         else if (metricInfo?.value.includes('Second')) unit = ' t/s';
 
-        return `${value}${unit}`;
+        // Format value based on type
+        const formattedValue = typeof value === 'number' ? value.toFixed(metricInfo?.value.includes('processingTime') ? 2 : (metricInfo?.value === 'tokensPerSecond' ? 1 : 0)) : value;
+
+
+        return `${formattedValue}${unit}`;
     };
 
 
@@ -169,7 +181,7 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
                  <Select
                      value={selectedMetric}
                      onValueChange={(value) => setSelectedMetric(value as MetricKey)}
-                     disabled={isLoading || results.length === 0}
+                     disabled={isLoading || completedResults.length === 0} // Disable if no completed results
                     >
                     <SelectTrigger id="metric-select" className="w-[180px] h-9">
                         <SelectValue placeholder="Select Metric" />
@@ -197,15 +209,15 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
                     value={[smoothing]}
                     onValueChange={(value) => setSmoothing(value[0])}
                     className="w-full"
-                    disabled={isLoading || results.length === 0}
+                    disabled={isLoading || completedResults.length === 0} // Disable if no completed results
                  />
               </div>
 
               {/* Chart Actions */}
               <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" disabled={isLoading || results.length === 0}><Settings2 className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" disabled={isLoading || results.length === 0}><RefreshCw className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" disabled={isLoading || results.length === 0}><Download className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><Settings2 className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><RefreshCw className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><Download className="h-4 w-4" /></Button>
               </div>
            </div>
 
@@ -213,11 +225,11 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
                  {/* Toggles */}
                 <div className="flex items-center gap-4">
                     <div className="flex items-center space-x-2">
-                        <Switch id="show-data-points" checked={showDataPoints} onCheckedChange={setShowDataPoints} disabled={isLoading || results.length === 0}/>
+                        <Switch id="show-data-points" checked={showDataPoints} onCheckedChange={setShowDataPoints} disabled={isLoading || completedResults.length === 0}/>
                         <Label htmlFor="show-data-points" className="text-sm text-muted-foreground">Show Data Points</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Switch id="sync-tooltips" checked={syncTooltips} onCheckedChange={setSyncTooltips} disabled={isLoading || results.length === 0}/>
+                        <Switch id="sync-tooltips" checked={syncTooltips} onCheckedChange={setSyncTooltips} disabled={isLoading || completedResults.length === 0}/>
                         <Label htmlFor="sync-tooltips" className="text-sm text-muted-foreground">Sync Tooltips</Label>
                     </div>
                 </div>
@@ -225,19 +237,19 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
                 {/* Zoom (Placeholder) */}
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Zoom: 0% to 100%</span>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isLoading || results.length === 0}><ZoomIn className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isLoading || results.length === 0}><ZoomOut className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isLoading || completedResults.length === 0}><ZoomIn className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isLoading || completedResults.length === 0}><ZoomOut className="h-4 w-4" /></Button>
                 </div>
             </div>
 
         </div>
 
         <div className="h-[350px] w-full">
-           {isLoading && chartData.length === 0 ? (
+           {isLoading && completedResults.length === 0 ? ( // Show loading only if loading AND no completed results yet
               <div className="flex items-center justify-center h-full text-muted-foreground">
                  Loading chart data...
               </div>
-           ) : !isLoading && chartData.length === 0 ? (
+           ) : !isLoading && completedResults.length === 0 ? ( // Show message if not loading and still no completed results
               <div className="flex items-center justify-center h-full text-muted-foreground">
                   Run a comparison to view performance metrics.
               </div>
@@ -279,7 +291,7 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
                         shared={syncTooltips} // Use sync state for shared tooltip
                       />
                       <Legend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
-                     {results.map((res, index) => (
+                     {completedResults.map((res) => ( // Only map completed results for drawing lines
                         <Line
                             key={res.connectionId}
                             dataKey={`${res.connectionId}_${selectedMetric}`}
@@ -289,6 +301,7 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
                             strokeWidth={2}
                             dot={showDataPoints ? (props: any) => <Dot {...props} r={3} fill={`var(--color-${res.connectionId})`} /> : false}
                             activeDot={showDataPoints ? { r: 5, strokeWidth: 1 } : false}
+                            connectNulls={false} // Don't connect lines over missing data points
                             // Apply smoothing if needed (adjust tension for 'monotone')
                             // For true smoothing, data pre-processing is better
                             // Monotone 'tension' affects curve shape:

@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Trash2, Download, Search, Filter, Clock } from "lucide-react";
 import type { ComparisonLog } from "@/types/compare";
 import { format } from 'date-fns';
+import { cn } from "@/lib/utils"; // Import cn
 
 type LogViewerProps = {
   isOpen: boolean;
@@ -182,7 +183,7 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
                               variant={log.results.some(r => r.status === 'error') ? 'destructive' : 'secondary'}
                               className={`text-xs whitespace-nowrap ${log.results.some(r => r.status === 'error') ? '' : 'bg-green-600/20 text-green-400 border-green-600/30'}`}
                            >
-                              {log.results.some(r => r.status === 'error') ? 'Error' : 'Model'}
+                              {log.results.some(r => r.status === 'error') ? 'Error' : 'Complete'} {/* Changed 'Model' to 'Complete' for success */}
                            </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground">
@@ -206,19 +207,22 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
                  <pre className="text-xs bg-muted/50 p-4 rounded-md overflow-x-auto">
                    {JSON.stringify(
                        {
+                           id: selectedLog.id, // Include ID
+                           timestamp: selectedLog.timestamp, // Include timestamp
                            duration: selectedLog.duration,
+                           prompt: selectedLog.prompt, // Include prompt
                            results: selectedLog.results.map(r => ({
                                modelId: r.modelId,
                                modelName: r.modelName,
+                               status: r.status, // Include status
                                responseTime: r.responseTime,
                                tokensPerSecond: r.tokensPerSecond,
                                totalTokens: r.totalTokens,
                                promptTokens: r.promptTokens,
                                completionTokens: r.completionTokens,
                                processingTime: r.processingTime,
-                               // Optionally include status/error here if needed in detailed view
+                               errorMessage: r.errorMessage, // Include error message if present
                            })),
-                           timestamp: selectedLog.timestamp, // Display timestamp in the details
                        },
                         null, // Replacer function
                         2     // Indentation spaces
@@ -242,4 +246,3 @@ export function LogViewer({ isOpen, onClose, logs, onClearLogs }: LogViewerProps
     </Dialog>
   );
 }
-```

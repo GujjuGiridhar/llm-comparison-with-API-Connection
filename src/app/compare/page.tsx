@@ -238,17 +238,17 @@ export default function ComparePage() {
         const endTime = performance.now();
         const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3)); // Total comparison duration in seconds
 
-        // Create log entry
-        const finalResultsForLog = fetchedResults.map(r => ({ // Use fetchedResults which are guaranteed complete or error
+        // Create log entry using the final state of 'results' to capture errors too
+        const finalResultsForLog = results.map(r => ({
             modelId: r.connectionId,
-            modelName: r.modelName, // Use modelName from PerformanceResult
-            responseTime: r.responseTime, // ms
+            modelName: r.modelName,
+            responseTime: r.responseTime,
             tokensPerSecond: r.tokensPerSecond,
             totalTokens: r.totalTokens,
             promptTokens: r.promptTokens,
             completionTokens: r.completionTokens,
-            processingTime: r.processingTime, // seconds
-            status: r.status, // Include status in log
+            processingTime: r.processingTime,
+            status: r.status, // Capture the final status (complete or error)
             errorMessage: r.errorMessage, // Include error message if any
         }));
 
@@ -399,7 +399,7 @@ export default function ComparePage() {
 
         {/* Performance Metrics Section - Render Chart */}
         {showResults && (
-            <PerformanceChart results={results.filter(r => r.status === 'complete')} isLoading={isLoading} />
+            <PerformanceChart results={results.filter(r => r.status === 'complete' || r.status === 'error')} isLoading={isLoading} /> // Pass all results for potential error visualization later
         )}
 
          {/* Placeholder when no results are shown yet */}

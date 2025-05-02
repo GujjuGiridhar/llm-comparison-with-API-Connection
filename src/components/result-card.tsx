@@ -127,4 +127,3 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
         </Card>
     );
 }
-```
