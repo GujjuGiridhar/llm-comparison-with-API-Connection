@@ -129,21 +129,28 @@ export function ApiForm({
 
   // Reset model selection and API URL when provider changes
   React.useEffect(() => {
+    // Don't run this effect if initialData exists and provider hasn't changed
+     if (initialData && initialData.providerName === selectedProviderKey) {
+       // Ensure model is set correctly if editing
+       if (selectedProviderConfig?.models.includes(initialData.model)) {
+         form.setValue('model', initialData.model, { shouldValidate: true });
+       } else {
+         form.setValue('model', '', { shouldValidate: true }); // Reset if initial model is invalid for provider
+       }
+       // Set initial URL if editing
+       form.setValue('apiUrl', initialData.apiUrl || (selectedProviderConfig?.defaultUrl || ''), { shouldValidate: true });
+       form.trigger(['apiKey', 'apiUrl', 'model']);
+       return;
+     }
+
+
     if (selectedProviderKey) {
         const providerConfig = supportedProviders[selectedProviderKey];
-        // If editing and the initial model belongs to the new provider, keep it. Otherwise reset.
-        if (!initialData || initialData.providerName !== selectedProviderKey || !providerConfig?.models.includes(initialData.model)) {
-            form.setValue('model', '', { shouldValidate: true });
-        } else {
-             form.setValue('model', initialData.model, { shouldValidate: true }); // Keep existing valid model
-        }
+         form.setValue('model', '', { shouldValidate: true }); // Reset model when provider changes
+
         // Set default API URL if provider changes and it has a default
         if (providerConfig?.requiresApiUrl) {
-            const currentApiUrl = form.getValues('apiUrl');
-             // Set default only if editing and provider changes, or if adding new and no URL yet
-            if ((initialData && initialData.providerName !== selectedProviderKey) || !currentApiUrl) {
-                form.setValue('apiUrl', providerConfig.defaultUrl || '', { shouldValidate: true });
-            }
+             form.setValue('apiUrl', providerConfig.defaultUrl || '', { shouldValidate: true });
         } else {
              form.setValue('apiUrl', '', { shouldValidate: true }); // Clear API URL if not required
         }
@@ -166,7 +173,7 @@ export function ApiForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-         <h3 className="text-lg font-medium mb-4 text-foreground">{initialData ? 'Edit' : 'Add'} API Connection</h3>
+         <h3 className="text-lg font-medium mb-4 text-foreground">{initialData ? 'Edit API Connection' : 'Add API Connection'}</h3>
         {/* Connection Name */}
         <FormField
           control={form.control}
@@ -289,9 +296,7 @@ export function ApiForm({
                   {selectedProviderKey && availableModels.length === 0 && <SelectItem value="-" disabled>No models listed for this provider</SelectItem>}
                 </SelectContent>
               </Select>
-               {/* Removed description for model select
-               <FormDescription>Choose the model provided by {selectedProviderConfig?.name || 'the selected provider'}.</FormDescription>
-               */}
+               {/* Removed description for model select */}
               <FormMessage />
             </FormItem>
           )}

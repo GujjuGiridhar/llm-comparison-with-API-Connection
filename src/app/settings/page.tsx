@@ -214,23 +214,24 @@ export default function SettingsPage() {
 
       <div className="max-w-4xl mx-auto space-y-8">
         <Card className="shadow-lg border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="text-xl">Model Connections</CardTitle>
-            {!showForm && ( // Only show Add button if form is not visible
+           {/* Show Header with Add button only when list is visible */}
+          {!showForm && (
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+               <CardTitle className="text-xl">Model Connections</CardTitle>
               <Button size="sm" onClick={handleAddConnectionClick} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Connection
               </Button>
-            )}
-          </CardHeader>
+            </CardHeader>
+          )}
           <CardContent>
-            {!showForm && ( // Only show tabs if form is not visible
+             {/* Show tabs only when list is visible */}
+            {!showForm && (
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ollama" | "api")} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="ollama">Ollama</TabsTrigger>
                   <TabsTrigger value="api">API</TabsTrigger>
                 </TabsList>
-                {/* Content is rendered below */}
               </Tabs>
             )}
 
