@@ -13,8 +13,8 @@ const alertVariants = cva(
           "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
         warning: // Added warning variant
            "border-yellow-500/50 text-yellow-700 dark:border-yellow-600/60 dark:text-yellow-400 [&>svg]:text-yellow-600 dark:[&>svg]:text-yellow-400",
-        success: // Added success variant
-           "border-green-500/50 text-green-700 dark:border-green-600/60 dark:text-green-400 [&>svg]:text-green-600 dark:[&>svg]:text-green-400",
+        success: // Added success variant - Ensure this styling is correct
+           "border-green-500/50 text-green-700 dark:border-green-600/60 dark:text-green-400 [&>svg]:text-green-600 dark:[&>svg]:text-green-400 bg-green-500/10", // Added a subtle background for success
       },
     },
     defaultVariants: {

@@ -38,7 +38,7 @@ export function ConnectionItem({ connection, onEdit, onDelete, onToggleActive }:
           <Switch
             checked={connection.isActive}
             onCheckedChange={onToggleActive}
-            aria-label={`Toggle ${connection.connectionName} active state`}
+            aria-label={'Toggle ' + connection.connectionName + ' active state'} // Changed to string concatenation
           />
           <div className="flex items-center gap-2 overflow-hidden">
              <span className="font-medium text-foreground truncate" title={connection.connectionName}>

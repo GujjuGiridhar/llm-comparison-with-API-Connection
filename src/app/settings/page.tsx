@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { buttonVariants } from "@/components/ui/button"; // Import buttonVariants
 
 // Define connection types
 export type Connection = (
@@ -43,18 +44,18 @@ export default function SettingsPage() {
     // Simulate loading saved connections
     const savedConnections: Connection[] = [
        // Example initial connection (optional)
-       // {
-       //   id: 'mock-ollama-1',
-       //   type: 'ollama',
-       //   connectionName: "Local Llama",
-       //   baseUrl: "http://localhost:11434",
-       //   model: "llama3:latest",
-       //   contextSize: 4096,
-       //   threads: "auto",
-       //   temperature: 0.7,
-       //   maxTokens: 2048,
-       //   isActive: true,
-       // }
+       {
+         id: 'mock-ollama-1',
+         type: 'ollama',
+         connectionName: "Local Llama",
+         baseUrl: "http://localhost:11434",
+         model: "llama3:latest",
+         contextSize: 4096,
+         threads: "auto",
+         temperature: 0.7,
+         maxTokens: 2048,
+         isActive: true,
+       }
     ];
     setConnections(savedConnections);
   }, []);
@@ -138,16 +139,23 @@ export default function SettingsPage() {
   };
 
   const handleToggleActive = (connectionId: string) => {
+     let updatedConnName = '';
+     let wasActive: boolean | undefined = undefined;
     setConnections(prev =>
-      prev.map(conn =>
-        conn.id === connectionId ? { ...conn, isActive: !conn.isActive } : conn
-      )
+      prev.map(conn => {
+        if (conn.id === connectionId) {
+            updatedConnName = conn.connectionName;
+            wasActive = conn.isActive;
+            return { ...conn, isActive: !conn.isActive };
+        }
+        return conn;
+        })
     );
-     const updatedConn = connections.find(c => c.id === connectionId);
-      if (updatedConn) {
+
+      if (updatedConnName && wasActive !== undefined) {
         toast({
-          title: `Connection ${updatedConn.isActive ? 'Deactivated' : 'Activated'}`,
-          description: `"${updatedConn.connectionName}" is now ${updatedConn.isActive ? 'inactive' : 'active'}.`,
+          title: `Connection ${wasActive ? 'Deactivated' : 'Activated'}`, // State *before* toggle
+          description: `"${updatedConnName}" is now ${wasActive ? 'inactive' : 'active'}.`, // State *after* toggle
         });
       }
   };
@@ -160,7 +168,6 @@ export default function SettingsPage() {
     if (activeTab === 'ollama') {
       return <OllamaForm onSubmit={handleSaveConnection as (data: OllamaFormValues) => void} onCancel={handleCancelForm} initialData={editingConnection as OllamaFormValues | undefined} />;
     } else if (activeTab === 'api') {
-      // Replace with actual API form when created
        return <ApiForm onSubmit={handleSaveConnection as (data: ApiFormValues) => void} onCancel={handleCancelForm} initialData={editingConnection as ApiFormValues | undefined} />;
     }
     return null;
@@ -237,6 +244,7 @@ export default function SettingsPage() {
 
        {/* Delete Confirmation Dialog */}
        <AlertDialog open={!!connectionToDelete} onOpenChange={(open) => !open && setConnectionToDelete(null)}>
+         {/* AlertDialogTrigger is not needed here as we open programmatically */}
          <AlertDialogContent>
            <AlertDialogHeader>
              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -256,93 +264,3 @@ export default function SettingsPage() {
     </main>
   );
 }
-
-// Helper function for buttonVariants (if not globally available)
-function buttonVariants(opts: { variant: "destructive" | "default" | "outline" | "secondary" | "ghost" | "link" | null | undefined }): string {
-  // Basic implementation for destructive variant style
-  if (opts.variant === "destructive") {
-    return "bg-destructive text-destructive-foreground hover:bg-destructive/90";
-  }
-  // Add other variants if needed
-  return "bg-primary text-primary-foreground hover:bg-primary/90"; // Default
-}
-```></content>
-  </change>
-  <change>
-    <file>src/components/settings/connection-item.tsx</file>
-    <description>Create a new component to display a single connection item with toggle, edit, and delete actions.</description>
-    <content><![CDATA[// src/components/settings/connection-item.tsx
-"use client";
-
-import * as React from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2 } from "lucide-react";
-import type { Connection } from "@/app/settings/page"; // Import the Connection type
-
-type ConnectionItemProps = {
-  connection: Connection;
-  onEdit: () => void;
-  onDelete: () => void;
-  onToggleActive: () => void;
-};
-
-export function ConnectionItem({ connection, onEdit, onDelete, onToggleActive }: ConnectionItemProps) {
-
-  const getProviderDisplay = (conn: Connection): string => {
-     if (conn.type === 'ollama') return 'Ollama';
-     // For API type, use providerName if available, otherwise default
-     return conn.providerName || 'API';
-  }
-
-   const getUrlDisplay = (conn: Connection): string => {
-     if (conn.type === 'ollama') return conn.baseUrl;
-     return conn.apiUrl || 'N/A';
-  }
-
-
-  return (
-    <Card className="border border-border bg-card/50 p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <CardContent className="p-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {/* Left side: Toggle, Name, Badge */}
-        <div className="flex items-center gap-3 flex-grow min-w-0">
-          <Switch
-            checked={connection.isActive}
-            onCheckedChange={onToggleActive}
-            aria-label={`Toggle ${connection.connectionName} active state`}
-          />
-          <div className="flex items-center gap-2 overflow-hidden">
-             <span className="font-medium text-foreground truncate" title={connection.connectionName}>
-                {connection.connectionName}
-             </span>
-             {connection.isActive && (
-                <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30 whitespace-nowrap">
-                  Active
-                </Badge>
-              )}
-          </div>
-        </div>
-
-        {/* Middle: Details */}
-        <div className="text-xs text-muted-foreground space-y-1 w-full sm:w-auto sm:flex-shrink-0 sm:text-right sm:ml-auto">
-           <p><span className="font-medium">Provider:</span> {getProviderDisplay(connection)}</p>
-           <p><span className="font-medium">Model:</span> {connection.model || 'Not Set'}</p>
-           <p><span className="font-medium">URL:</span> <span className="break-all">{getUrlDisplay(connection)}</span></p>
-        </div>
-
-        {/* Right side: Actions */}
-        <div className="flex gap-2 items-center flex-shrink-0">
-          <Button variant="ghost" size="sm" onClick={onEdit} className="text-muted-foreground hover:text-foreground">
-            <Edit className="h-4 w-4 mr-1" /> Edit
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive/80 hover:bg-destructive/10">
-            <Trash2 className="h-4 w-4 mr-1" /> Delete
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-```

@@ -214,7 +214,7 @@ export function OllamaForm({
 
          {/* Test Connection Results */}
          {testResult && (
-           <Alert variant={testResult.success ? "default" : "destructive"} className={testResult.success ? "border-green-500/50 dark:border-green-600/60" : ""}>
+           <Alert variant={testResult.success ? "success" : "destructive"} className={testResult.success ? "border-green-500/50 dark:border-green-600/60" : ""}>
              {testResult.success ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
              <AlertTitle>{testResult.success ? "Connection Test Successful" : "Connection Test Failed"}</AlertTitle>
              <AlertDescription>
@@ -347,4 +347,3 @@ export function OllamaForm({
     </Form>
   );
 }
-```
