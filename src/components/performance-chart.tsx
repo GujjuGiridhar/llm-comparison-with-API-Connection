@@ -38,19 +38,24 @@ type MetricKey = typeof metricOptions[number]['value'];
 type PerformanceChartProps = {
   results: PerformanceResult[];
   isLoading: boolean;
+  lastRunTimestamp: Date | null; // Add timestamp prop
 };
 
 // Mock time-series data generation (replace with actual data structure)
 // Update mock generation to handle potentially undefined metric values gracefully
-const generateMockTimeSeries = (results: PerformanceResult[]) => {
+const generateMockTimeSeries = (results: PerformanceResult[], timestamp: Date | null) => {
     const timePoints = 10; // Number of data points over time
-    const startTime = new Date().getTime() - (timePoints * 2000); // Start 20 seconds ago
+    // Use the provided timestamp if available, otherwise fallback to current time
+    const endTime = timestamp ? timestamp.getTime() : new Date().getTime();
+    const startTime = endTime - (timePoints * 2000); // Start N seconds before the end time
     const data: any[] = [];
 
+    console.log("Generating chart data based on timestamp:", timestamp); // Add logging
+
     for (let i = 0; i < timePoints; i++) {
-        const timestamp = startTime + i * 2000;
-        const timeLabel = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const point: any = { time: timeLabel, timestamp: timestamp };
+        const pointTime = startTime + i * 2000;
+        const timeLabel = new Date(pointTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const point: any = { time: timeLabel, timestamp: pointTime };
 
         results.forEach(res => {
             // Use optional chaining and default values (e.g., 0)
@@ -61,10 +66,12 @@ const generateMockTimeSeries = (results: PerformanceResult[]) => {
             const basePrompt = res.promptTokens ?? 0;
             const baseComp = res.completionTokens ?? 0;
 
-            // Simulate metric fluctuation over time
-            point[`${res.connectionId}_tokensPerSecond`] = parseFloat((baseTps * (0.8 + Math.random() * 0.4)).toFixed(1)) || 0; // Ensure not NaN
-            point[`${res.connectionId}_responseTime`] = Math.round(baseResp * (0.9 + Math.random() * 0.2));
-            point[`${res.connectionId}_processingTime`] = parseFloat((baseProc * (0.9 + Math.random() * 0.2)).toFixed(2)) || 0; // Ensure not NaN
+            // Simulate metric fluctuation over time - add slight variation based on timestamp too
+            const timeFactor = 1 + Math.sin(pointTime / 50000) * 0.1; // Slow oscillation based on time
+
+            point[`${res.connectionId}_tokensPerSecond`] = parseFloat((baseTps * (0.8 + Math.random() * 0.4) * timeFactor).toFixed(1)) || 0; // Ensure not NaN
+            point[`${res.connectionId}_responseTime`] = Math.round(baseResp * (0.9 + Math.random() * 0.2) * timeFactor);
+            point[`${res.connectionId}_processingTime`] = parseFloat((baseProc * (0.9 + Math.random() * 0.2) * timeFactor).toFixed(2)) || 0; // Ensure not NaN
             // Ensure totalTokens fluctuation doesn't go below promptTokens
             const simulatedTotal = baseTotal - Math.floor(Math.random() * (baseTotal * 0.1));
             point[`${res.connectionId}_totalTokens`] = Math.max(basePrompt, simulatedTotal); // Can't be less than prompt tokens
@@ -90,7 +97,7 @@ const generateChartColors = (numColors: number): { [key: string]: string } => {
     return colors;
 };
 
-export function PerformanceChart({ results, isLoading }: PerformanceChartProps) {
+export function PerformanceChart({ results, isLoading, lastRunTimestamp }: PerformanceChartProps) {
   const [selectedMetric, setSelectedMetric] = React.useState<MetricKey>("tokensPerSecond");
   const [smoothing, setSmoothing] = React.useState(55);
   const [showDataPoints, setShowDataPoints] = React.useState(false);
@@ -100,7 +107,10 @@ export function PerformanceChart({ results, isLoading }: PerformanceChartProps) 
 
   // Filter results to only include those with 'complete' status for chart data generation
   const completedResults = results.filter(r => r.status === 'complete');
-  const chartData = React.useMemo(() => generateMockTimeSeries(completedResults), [completedResults]);
+
+  // Regenerate chartData when lastRunTimestamp changes
+  const chartData = React.useMemo(() => generateMockTimeSeries(completedResults, lastRunTimestamp), [completedResults, lastRunTimestamp]);
+
 
   // Prepare Chart Config based on *all* results (for consistent coloring/legend) but only generate data for completed ones
     const chartColors = React.useMemo(() => generateChartColors(results.length), [results.length]);

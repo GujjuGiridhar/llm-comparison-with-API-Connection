@@ -11,14 +11,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileText, CheckSquare, Combine, FlaskConical, RefreshCw, BarChart, Logs } from "lucide-react"; // Added Logs icon
+import { FileText, CheckSquare, Combine, FlaskConical, RefreshCw, BarChart, Logs } from "lucide-react";
 import type { Connection } from "@/app/settings/page";
 import { ComparisonSetup } from "@/components/comparison-setup";
 import { PerformanceChart } from "@/components/performance-chart";
 import { ResultCard } from "@/components/result-card";
-import type { PerformanceResult, ComparisonLog } from "@/types/compare"; // Import shared types
+import type { PerformanceResult, ComparisonLog } from "@/types/compare";
 import { useToast } from "@/hooks/use-toast";
-import { LogViewer } from "@/components/log-viewer"; // Import LogViewer
+import { LogViewer } from "@/components/log-viewer";
+import { MetricsVerificationDialog } from "@/components/metrics-verification-dialog"; // Import the new dialog
 
 const LOGS_STORAGE_KEY = 'comparison_logs';
 const MAX_LOGS = 20; // Limit the number of logs stored
@@ -30,7 +31,9 @@ export default function ComparePage() {
   const [results, setResults] = React.useState<PerformanceResult[]>([]);
   const [connections, setConnections] = React.useState<Connection[]>([]);
   const [isLogViewerOpen, setIsLogViewerOpen] = React.useState(false);
+  const [isVerificationOpen, setIsVerificationOpen] = React.useState(false); // State for verification dialog
   const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
+  const [lastRunTimestamp, setLastRunTimestamp] = React.useState<Date | null>(null); // Track last run time
 
   // Load connections and logs from localStorage on mount
   React.useEffect(() => {
@@ -136,6 +139,7 @@ export default function ComparePage() {
  const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
     console.log("Comparison submitted:", data);
     const startTime = performance.now(); // Start timing the whole comparison
+    setLastRunTimestamp(new Date()); // Record start time
     let currentResultsState: PerformanceResult[] = []; // Variable to hold the latest results state
 
     if (data.selectedConnectionIds.length === 0) {
@@ -307,6 +311,7 @@ export default function ComparePage() {
            saveLogs(updatedLogs); // Save the updated logs
            return updatedLogs;
        });
+       setLastRunTimestamp(new Date()); // Record end time (or last update time)
     }
   };
 
@@ -316,17 +321,49 @@ export default function ComparePage() {
       console.log("Opening Log Viewer with logs:", comparisonLogs);
       setIsLogViewerOpen(true);
   }
-  const handleVerifyClick = () => toast({ title: "Action: Verify (Not Implemented)" });
-  // const handlePaintClick = () => toast({ title: "Action: Paint (Not Implemented)" }); // Removed Paintbrush
+  const handleVerifyClick = () => {
+      if (results.length > 0 || comparisonLogs.length > 0) {
+         setIsVerificationOpen(true);
+      } else {
+          toast({
+              title: "No Data Available",
+              description: "Run a comparison first to verify metrics.",
+              variant: "default",
+          });
+      }
+  };
   const handleTogetherApiClick = () => toast({ title: "Action: Together API (Not Implemented)" });
   const handleApiTestClick = () => toast({ title: "Action: API Test (Not Implemented)" });
+
+  // Refresh button handler
   const handleRefreshClick = () => {
-    toast({ title: "Action: Refreshing Comparison" });
-    // Re-run last comparison or clear state (clearing for now)
-    setShowResults(false);
-    setResults([]);
-    // Consider keeping the prompt and selected models?
-  };
+    // Find the most recent log entry to re-run
+    const lastLog = comparisonLogs.length > 0 ? comparisonLogs[0] : null;
+    if (lastLog) {
+        // Find the connection IDs used in the last run
+        const lastConnectionIds = lastLog.results.map(r => r.modelId);
+        const availableLastConnectionIds = lastConnectionIds.filter(id => connections.some(c => c.id === id));
+
+        if (availableLastConnectionIds.length > 0) {
+            toast({ title: "Refreshing Comparison", description: "Re-running the last comparison..." });
+            handleCompareSubmit({
+                prompt: lastLog.prompt,
+                selectedConnectionIds: availableLastConnectionIds
+            });
+        } else {
+             toast({ title: "Cannot Refresh", description: "Models from the last comparison are no longer available.", variant: "destructive" });
+             // Optionally clear state or just do nothing
+             // setShowResults(false);
+             // setResults([]);
+        }
+    } else {
+        toast({ title: "Nothing to Refresh", description: "No previous comparison found in logs." });
+         // Optionally clear current results if any
+         // setShowResults(false);
+         // setResults([]);
+    }
+};
+
 
   return (
     <>
@@ -386,7 +423,11 @@ export default function ComparePage() {
 
         {/* Performance Metrics Section - Render Chart */}
         {showResults && (
-            <PerformanceChart results={results.filter(r => r.status === 'complete' || r.status === 'error')} isLoading={isLoading} /> // Pass all results for potential error visualization later
+            <PerformanceChart
+                results={results.filter(r => r.status === 'complete' || r.status === 'error')}
+                isLoading={isLoading}
+                lastRunTimestamp={lastRunTimestamp} // Pass timestamp to chart
+             />
         )}
 
          {/* Placeholder when no results are shown yet */}
@@ -415,6 +456,15 @@ export default function ComparePage() {
                saveLogs([]); // Clear from storage as well
                toast({ title: "Logs Cleared" });
             }}
+       />
+
+        {/* Metrics Verification Modal */}
+       <MetricsVerificationDialog
+           isOpen={isVerificationOpen}
+           onClose={() => setIsVerificationOpen(false)}
+           // Pass the most recent log entry for verification
+           logEntry={comparisonLogs.length > 0 ? comparisonLogs[0] : null}
+           onRefresh={handleRefreshClick} // Pass the refresh handler
        />
     </>
   );
