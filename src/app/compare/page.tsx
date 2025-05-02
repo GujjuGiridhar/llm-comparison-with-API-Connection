@@ -1,4 +1,6 @@
 // src/app/compare/page.tsx
+"use client"; // Add "use client" directive
+
 import * as React from "react";
 import { PromptForm } from "@/components/prompt-form";
 import { ResponseCard } from "@/components/response-card";
@@ -61,12 +63,26 @@ const ComparisonComponent = () => {
 };
 
 
-export const metadata: Metadata = {
-  title: 'Compare Models | LLM Comparo',
-  description: 'Compare LLM responses side-by-side.',
-};
+// Note: Metadata should ideally be defined in a separate Server Component or layout
+// if the entire page needs to be a Client Component. For simplicity, keeping it here.
+// Consider refactoring if needed for RSC best practices.
+// export const metadata: Metadata = {
+//   title: 'Compare Models | LLM Comparo',
+//   description: 'Compare LLM responses side-by-side.',
+// };
 
 export default function ComparePage() {
+  // Set metadata dynamically in Client Component if needed, or move to layout
+  React.useEffect(() => {
+    document.title = 'Compare Models | LLM Comparo';
+    // You might need a more robust way to handle metadata in client components
+    const descriptionMeta = document.querySelector('meta[name="description"]');
+    if (descriptionMeta) {
+      descriptionMeta.setAttribute('content', 'Compare LLM responses side-by-side.');
+    }
+  }, []);
+
+
   return (
     <main className="container mx-auto px-4 py-8 md:py-12">
        <header className="text-center mb-8 md:mb-12">
