@@ -29,6 +29,7 @@ export type Connection = (
   | (ApiFormValues & { type: 'api'; id: string; isActive: boolean })
 );
 
+const LOCAL_STORAGE_KEY = 'llm_connections';
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -39,27 +40,56 @@ export default function SettingsPage() {
   const [connectionToDelete, setConnectionToDelete] = React.useState<Connection | null>(null);
 
 
-  // --- Mock Data Loading (Replace with actual data fetching) ---
+   // Load connections from localStorage on mount
   React.useEffect(() => {
-    // Simulate loading saved connections
-    const savedConnections: Connection[] = [
-       // Example initial connection (optional)
-       {
-         id: 'mock-ollama-1',
-         type: 'ollama',
-         connectionName: "Local Llama",
-         baseUrl: "http://localhost:11434",
-         model: "llama3:latest",
-         contextSize: 4096,
-         threads: "auto",
-         temperature: 0.7,
-         maxTokens: 2048,
-         isActive: true,
+    const savedConnections = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedConnections) {
+       try {
+         const parsedConnections = JSON.parse(savedConnections) as Connection[];
+         setConnections(parsedConnections);
+       } catch (error) {
+         console.error("Failed to parse connections from localStorage", error);
+         setConnections([]); // Reset if parsing fails
+         localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear invalid data
        }
-    ];
-    setConnections(savedConnections);
+     } else {
+         // Add mock data if local storage is empty
+         const mockConnections: Connection[] = [
+             {
+                 id: 'mock-ollama-1',
+                 type: 'ollama',
+                 connectionName: "Local Llama",
+                 baseUrl: "http://localhost:11434",
+                 model: "llama3:latest",
+                 contextSize: 4096,
+                 threads: "auto",
+                 temperature: 0.7,
+                 maxTokens: 2048,
+                 isActive: true,
+             },
+              {
+                 id: 'mock-ollama-2',
+                 type: 'ollama',
+                 connectionName: "Local Mistral",
+                 baseUrl: "http://localhost:11434",
+                 model: "mistral:latest",
+                 contextSize: 8192,
+                 threads: "auto",
+                 temperature: 0.6,
+                 maxTokens: 4096,
+                 isActive: true,
+             }
+         ];
+         setConnections(mockConnections);
+         // Save mocks to localStorage for next load
+         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mockConnections));
+     }
   }, []);
-   // --- End Mock Data Loading ---
+
+   // Save connections to localStorage whenever they change
+   React.useEffect(() => {
+     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(connections));
+   }, [connections]);
 
 
   React.useEffect(() => {
