@@ -11,13 +11,17 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileText, CheckSquare, Paintbrush, Combine, FlaskConical, RefreshCw, BarChart } from "lucide-react";
+import { FileText, CheckSquare, Combine, FlaskConical, RefreshCw, BarChart, Logs } from "lucide-react"; // Added Logs icon
 import type { Connection } from "@/app/settings/page";
 import { ComparisonSetup } from "@/components/comparison-setup";
-import { PerformanceChart } from "@/components/performance-chart"; // Import the chart component
-import { ResultCard } from "@/components/result-card"; // Import the result card component
-import type { PerformanceResult } from "@/types/compare"; // Import shared type
+import { PerformanceChart } from "@/components/performance-chart";
+import { ResultCard } from "@/components/result-card";
+import type { PerformanceResult, ComparisonLog } from "@/types/compare"; // Import shared types
 import { useToast } from "@/hooks/use-toast";
+import { LogViewer } from "@/components/log-viewer"; // Import LogViewer
+
+const LOGS_STORAGE_KEY = 'comparison_logs';
+const MAX_LOGS = 20; // Limit the number of logs stored
 
 export default function ComparePage() {
   const { toast } = useToast();
@@ -25,8 +29,12 @@ export default function ComparePage() {
   const [showResults, setShowResults] = React.useState(false);
   const [results, setResults] = React.useState<PerformanceResult[]>([]);
   const [connections, setConnections] = React.useState<Connection[]>([]);
+  const [isLogViewerOpen, setIsLogViewerOpen] = React.useState(false);
+  const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
 
+  // Load connections and logs from localStorage on mount
   React.useEffect(() => {
+    // Load Connections
     const savedConnections = localStorage.getItem('llm_connections');
     let activeConnections: Connection[] = [];
     if (savedConnections) {
@@ -84,6 +92,18 @@ export default function ComparePage() {
     }
      setConnections(activeConnections);
 
+     // Load Logs
+     const savedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
+     if (savedLogs) {
+         try {
+             const parsedLogs = JSON.parse(savedLogs) as ComparisonLog[];
+             setComparisonLogs(parsedLogs);
+         } catch (error) {
+             console.error("Failed to parse logs from localStorage", error);
+             localStorage.removeItem(LOGS_STORAGE_KEY); // Clear invalid data
+         }
+     }
+
   }, []);
 
 
@@ -98,9 +118,25 @@ export default function ComparePage() {
     }
   }, []);
 
+  // Function to save logs to localStorage
+  const saveLogs = (logs: ComparisonLog[]) => {
+    try {
+        const logsToSave = logs.slice(-MAX_LOGS); // Keep only the latest logs
+        localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(logsToSave));
+    } catch (error) {
+        console.error("Failed to save logs to localStorage", error);
+        toast({
+            title: "Error Saving Logs",
+            description: "Could not save comparison logs to local storage.",
+            variant: "destructive",
+        });
+    }
+};
 
   const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
     console.log("Comparison submitted:", data);
+    const startTime = performance.now(); // Start timing the whole comparison
+
     if (data.selectedConnectionIds.length === 0) {
         toast({
             title: "No Models Selected",
@@ -130,6 +166,7 @@ export default function ComparePage() {
           return {
               connectionId: id,
               connectionName: conn?.connectionName || `Model ${id.substring(0, 5)}`,
+              modelName: conn?.model || 'unknown', // Add modelName
               // Initial empty/loading values
               processingTime: 0,
               responseTime: 0,
@@ -151,6 +188,7 @@ export default function ComparePage() {
       for (const id of data.selectedConnectionIds) {
         const conn = connections.find(c => c.id === id);
         const name = conn?.connectionName || `Model ${id.substring(0, 5)}`;
+        const modelName = conn?.model || 'unknown';
 
         // Simulate API call delay
         const delay = 500 + Math.random() * 2500; // 0.5s to 3s
@@ -158,20 +196,22 @@ export default function ComparePage() {
 
         // Generate mock performance data
         const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
-        const responseTime = processingTime; // Simplified for mock
+         // Simulate response time slightly earlier than processing time
+        const responseTime = Math.max(50, parseFloat((delay * (0.1 + Math.random() * 0.3)).toFixed(0))); // e.g., 10-40% of total delay, in ms
         const completionTokens = 5 + Math.floor(Math.random() * 500);
         const promptTokens = data.prompt.split(/\s+/).length; // Rough estimate
         const totalTokens = promptTokens + completionTokens;
         const tokensPerSecond = parseFloat((completionTokens / processingTime).toFixed(1)) || 0;
         const elapsedTime = processingTime; // Simplified
 
-         const mockOutput = `Mock response from ${name} for prompt: "${data.prompt}".\n\nGenerated ${completionTokens} tokens in ${processingTime}s. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. ${Math.random() > 0.5 ? 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' : ''}`;
+         const mockOutput = `Mock response from ${name} (${modelName}) for prompt: "${data.prompt}".\n\nGenerated ${completionTokens} tokens in ${processingTime}s. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. ${Math.random() > 0.5 ? 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' : ''}`;
 
         const result: PerformanceResult = {
           connectionId: id,
           connectionName: name,
+          modelName: modelName, // Include modelName
           processingTime: processingTime,
-          responseTime: responseTime,
+          responseTime: responseTime, // In ms
           tokensPerSecond: tokensPerSecond,
           totalTokens: totalTokens,
           promptTokens: promptTokens,
@@ -194,6 +234,39 @@ export default function ComparePage() {
         });
       }
 
+        // After all results are fetched (or failed)
+        const endTime = performance.now();
+        const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3)); // Total comparison duration in seconds
+
+        // Create log entry
+        const finalResultsForLog = fetchedResults.map(r => ({ // Use fetchedResults which are guaranteed complete or error
+            modelId: r.connectionId,
+            modelName: r.modelName, // Use modelName from PerformanceResult
+            responseTime: r.responseTime, // ms
+            tokensPerSecond: r.tokensPerSecond,
+            totalTokens: r.totalTokens,
+            promptTokens: r.promptTokens,
+            completionTokens: r.completionTokens,
+            processingTime: r.processingTime, // seconds
+            status: r.status, // Include status in log
+            errorMessage: r.errorMessage, // Include error message if any
+        }));
+
+        const newLogEntry: ComparisonLog = {
+            id: `comparison-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            duration: totalDuration,
+            prompt: data.prompt,
+            results: finalResultsForLog,
+        };
+
+        // Update logs state and save to localStorage
+        setComparisonLogs(prevLogs => {
+           const updatedLogs = [newLogEntry, ...prevLogs].slice(0, MAX_LOGS);
+           saveLogs(updatedLogs); // Save the updated logs
+           return updatedLogs;
+       });
+
 
     } catch (error) {
         console.error("Comparison failed:", error);
@@ -202,26 +275,66 @@ export default function ComparePage() {
             description: "An error occurred while fetching model responses. Please try again.",
             variant: "destructive",
         });
-         setResults(prevResults => prevResults.map(r => ({ ...r, status: 'error' }))); // Mark failed ones as error
+         // Mark running tasks as error, keep existing complete/error statuses
+         setResults(currentResults =>
+            currentResults.map(r =>
+                r.status === 'running' ? { ...r, status: 'error', errorMessage: 'Request failed or timed out.' } : r
+            )
+        );
+
+         // Log the failure as well
+         const endTime = performance.now();
+         const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3));
+         const finalResultsForLog = results.map(r => ({ // Use current state of results
+             modelId: r.connectionId,
+             modelName: r.modelName,
+             responseTime: r.responseTime,
+             tokensPerSecond: r.tokensPerSecond,
+             totalTokens: r.totalTokens,
+             promptTokens: r.promptTokens,
+             completionTokens: r.completionTokens,
+             processingTime: r.processingTime,
+             status: r.status === 'running' ? 'error' : r.status, // Mark running as error
+             errorMessage: r.status === 'running' ? 'Request failed or timed out.' : r.errorMessage,
+         }));
+
+         const newLogEntry: ComparisonLog = {
+             id: `comparison-failed-${Date.now()}`,
+             timestamp: new Date().toISOString(),
+             duration: totalDuration,
+             prompt: data.prompt,
+             results: finalResultsForLog,
+         };
+         setComparisonLogs(prevLogs => {
+             const updatedLogs = [newLogEntry, ...prevLogs].slice(0, MAX_LOGS);
+             saveLogs(updatedLogs);
+             return updatedLogs;
+         });
+
+
     } finally {
         setIsLoading(false);
          // Ensure all final results have 'complete' or 'error' status
          setResults(currentResults => currentResults.map(r => ({
              ...r,
-             status: r.status === 'running' ? 'error' : r.status // Mark unfinished as error
+             status: r.status === 'running' ? 'error' : r.status, // Mark unfinished as error
+             errorMessage: r.status === 'running' ? 'Request timed out or failed during finalization.' : r.errorMessage,
          })));
     }
   };
 
 
   // Placeholder functions for toolbar buttons
-  const handleLogsClick = () => toast({ title: "Action: Show Logs (Not Implemented)" });
+  const handleLogsClick = () => {
+      console.log("Opening Log Viewer with logs:", comparisonLogs);
+      setIsLogViewerOpen(true);
+  }
   const handleVerifyClick = () => toast({ title: "Action: Verify (Not Implemented)" });
-  const handlePaintClick = () => toast({ title: "Action: Paint (Not Implemented)" });
+  // const handlePaintClick = () => toast({ title: "Action: Paint (Not Implemented)" }); // Removed Paintbrush
   const handleTogetherApiClick = () => toast({ title: "Action: Together API (Not Implemented)" });
   const handleApiTestClick = () => toast({ title: "Action: API Test (Not Implemented)" });
   const handleRefreshClick = () => {
-    toast({ title: "Action: Refresh" });
+    toast({ title: "Action: Refreshing Comparison" });
     // Re-run last comparison or clear state (clearing for now)
     setShowResults(false);
     setResults([]);
@@ -229,76 +342,93 @@ export default function ComparePage() {
   };
 
   return (
-    <main className="container mx-auto px-4 py-8 md:py-12">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4 md:mb-0">
-          Model Comparison
-        </h1>
-         {/* Toolbar */}
-         <div className="flex items-center space-x-2 border border-border rounded-md p-1 bg-card/80 backdrop-blur-sm">
-             {/* Removed Paintbrush and FileText as per image */}
-             <Button variant="ghost" size="sm" onClick={handleVerifyClick} aria-label="Verify">
-                 <CheckSquare className="h-4 w-4" /> Verify
-             </Button>
-             <Separator orientation="vertical" className="h-6" />
-             <Button variant="ghost" size="sm" onClick={handleTogetherApiClick}>
-                 <Combine className="h-4 w-4 mr-1" /> {/* Using Combine for Together API */}
-                 Together API
-             </Button>
-             <Button variant="ghost" size="sm" onClick={handleApiTestClick}>
-                 <FlaskConical className="h-4 w-4 mr-1" />
-                 API Test
-             </Button>
-             <Separator orientation="vertical" className="h-6" />
-             <Button variant="ghost" size="sm" onClick={handleRefreshClick}>
-                 <RefreshCw className="h-4 w-4 mr-1" />
-                 Refresh
-             </Button>
-          </div>
-      </header>
-
-      {/* Setup Section (Prompt and Model Selection) */}
-      <ComparisonSetup
-        connections={connections}
-        onSubmit={handleCompareSubmit}
-        isLoading={isLoading}
-      />
-
-       {/* Responses Section - Render Result Cards */}
-       {showResults && results.length > 0 && (
-          <>
-            <Separator className="my-8 md:my-12" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {results.map(res => (
-                <ResultCard key={res.connectionId} result={res} isLoading={isLoading && res.status === 'running'} />
-              ))}
+    <>
+      <main className="container mx-auto px-4 py-8 md:py-12">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4 md:mb-0">
+            Model Comparison
+          </h1>
+           {/* Toolbar */}
+           <div className="flex items-center space-x-1 md:space-x-2 border border-border rounded-md p-1 bg-card/80 backdrop-blur-sm">
+               <Button variant="ghost" size="sm" onClick={handleLogsClick} aria-label="Show Logs">
+                   <Logs className="h-4 w-4 mr-1" /> Logs
+               </Button>
+               <Separator orientation="vertical" className="h-6" />
+               <Button variant="ghost" size="sm" onClick={handleVerifyClick} aria-label="Verify">
+                   <CheckSquare className="h-4 w-4 mr-1" /> Verify
+               </Button>
+               <Separator orientation="vertical" className="h-6" />
+               <Button variant="ghost" size="sm" onClick={handleTogetherApiClick}>
+                   <Combine className="h-4 w-4 mr-1" /> {/* Using Combine for Together API */}
+                   Together API
+               </Button>
+               <Button variant="ghost" size="sm" onClick={handleApiTestClick}>
+                   <FlaskConical className="h-4 w-4 mr-1" />
+                   API Test
+               </Button>
+               <Separator orientation="vertical" className="h-6" />
+               <Button variant="ghost" size="sm" onClick={handleRefreshClick}>
+                   <RefreshCw className="h-4 w-4 mr-1" />
+                   Refresh
+               </Button>
             </div>
-          </>
-       )}
+        </header>
+
+        {/* Setup Section (Prompt and Model Selection) */}
+        <ComparisonSetup
+          connections={connections}
+          onSubmit={handleCompareSubmit}
+          isLoading={isLoading}
+        />
+
+         {/* Responses Section - Render Result Cards */}
+         {showResults && results.length > 0 && (
+            <>
+              <Separator className="my-8 md:my-12" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {results.map(res => (
+                  <ResultCard key={res.connectionId} result={res} isLoading={isLoading && res.status === 'running'} />
+                ))}
+              </div>
+            </>
+         )}
 
 
-       {/* Separator */}
-       {showResults && <Separator className="my-8 md:my-12" />}
+         {/* Separator */}
+         {showResults && <Separator className="my-8 md:my-12" />}
 
-      {/* Performance Metrics Section - Render Chart */}
-      {showResults && (
-          <PerformanceChart results={results.filter(r => r.status === 'complete')} isLoading={isLoading} />
-      )}
+        {/* Performance Metrics Section - Render Chart */}
+        {showResults && (
+            <PerformanceChart results={results.filter(r => r.status === 'complete')} isLoading={isLoading} />
+        )}
 
-       {/* Placeholder when no results are shown yet */}
-      {!showResults && (
-         <Card className="mt-8 md:mt-12 shadow-lg border-border bg-card/50">
-             <CardHeader>
-                 <CardTitle>Performance Metrics</CardTitle>
-                 <CardDescription>Visualizing model performance and responses.</CardDescription>
-             </CardHeader>
-             <CardContent className="min-h-[200px] flex flex-col items-center justify-center text-center text-muted-foreground">
-                 <BarChart className="h-12 w-12 mb-4" />
-                 <h3 className="text-lg font-semibold mb-1">Ready to Compare</h3>
-                 <p>Enter a prompt, select models, and click "Compare Models" to see results and performance metrics.</p>
-             </CardContent>
-         </Card>
-      )}
-    </main>
+         {/* Placeholder when no results are shown yet */}
+        {!showResults && (
+           <Card className="mt-8 md:mt-12 shadow-lg border-border bg-card/50">
+               <CardHeader>
+                   <CardTitle>Performance Metrics</CardTitle>
+                   <CardDescription>Visualizing model performance and responses.</CardDescription>
+               </CardHeader>
+               <CardContent className="min-h-[200px] flex flex-col items-center justify-center text-center text-muted-foreground">
+                   <BarChart className="h-12 w-12 mb-4" />
+                   <h3 className="text-lg font-semibold mb-1">Ready to Compare</h3>
+                   <p>Enter a prompt, select models, and click "Compare Models" to see results and performance metrics.</p>
+               </CardContent>
+           </Card>
+        )}
+      </main>
+
+       {/* Log Viewer Modal */}
+       <LogViewer
+           isOpen={isLogViewerOpen}
+           onClose={() => setIsLogViewerOpen(false)}
+           logs={comparisonLogs}
+           onClearLogs={() => {
+               setComparisonLogs([]);
+               saveLogs([]); // Clear from storage as well
+               toast({ title: "Logs Cleared" });
+            }}
+       />
+    </>
   );
 }

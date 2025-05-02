@@ -16,6 +16,7 @@ type ResultCardProps = {
 export function ResultCard({ result, isLoading }: ResultCardProps) {
     const {
         connectionName,
+        modelName, // Get modelName
         status,
         processingTime,
         responseTime,
@@ -25,7 +26,8 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
         completionTokens,
         elapsedTime, // Assuming this is calculated or provided
         output,
-        rating
+        rating,
+        errorMessage // Get errorMessage
     } = result;
 
     const isComplete = status === 'complete';
@@ -33,9 +35,11 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
     const isError = status === 'error';
 
     // Format time values
-    const formatTime = (seconds: number | undefined): string => {
-        if (seconds === undefined) return 'N/A';
-        return `${seconds.toFixed(2)}s`;
+    const formatTime = (value: number | undefined, unit: 's' | 'ms'): string => {
+        if (value === undefined) return 'N/A';
+        if (unit === 's') return `${value.toFixed(2)}s`;
+        // For ms, show as integer
+        return `${Math.round(value)}ms`;
     };
 
     // Calculate progress percentage (simplified)
@@ -45,10 +49,14 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
     return (
         <Card className={`shadow-md border ${isError ? 'border-destructive/50' : 'border-border'} ${isRunning ? 'opacity-70' : ''}`}>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-lg font-semibold truncate" title={connectionName}>
-                {connectionName}
-            </CardTitle>
-            <Badge variant={isComplete ? "secondary" : isError ? "destructive" : "outline"} className={`ml-auto whitespace-nowrap ${isComplete ? 'bg-green-600/20 text-green-400 border-green-600/30' : ''} ${isRunning ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30' : ''}`}>
+             <div>
+                 <CardTitle className="text-lg font-semibold truncate" title={connectionName}>
+                     {connectionName}
+                 </CardTitle>
+                 {/* Display Model Name below Connection Name */}
+                 <CardDescription className="text-xs text-muted-foreground">{modelName}</CardDescription>
+             </div>
+            <Badge variant={isComplete ? "secondary" : isError ? "destructive" : "outline"} className={`ml-auto whitespace-nowrap ${isComplete ? 'bg-green-600/20 text-green-400 border-green-600/30' : ''} ${isError ? '' : ''} ${isRunning ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30' : ''}`}>
                 {isComplete ? <CheckCircle className="h-3 w-3 mr-1" /> : isError ? <AlertTriangle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1 animate-spin" />}
                 {status}
             </Badge>
@@ -57,10 +65,10 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div className="text-muted-foreground">Processing Time</div>
-                <div className="text-right font-mono">{formatTime(processingTime)}</div>
+                <div className="text-right font-mono">{formatTime(processingTime, 's')}</div>
 
                 <div className="text-muted-foreground">Response Time</div>
-                <div className="text-right font-mono">{formatTime(responseTime)}</div>
+                <div className="text-right font-mono">{formatTime(responseTime, 'ms')}</div>
 
                 <div className="text-muted-foreground">Tokens/Second</div>
                 <div className="text-right font-mono">{tokensPerSecond?.toFixed(1) ?? 'N/A'}</div>
@@ -78,7 +86,7 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
              {/* Elapsed Time & Progress */}
             <div className="space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Elapsed Time: {formatTime(elapsedTime)}</span>
+                    <span>Elapsed Time: {formatTime(elapsedTime, 's')}</span>
                     <span>{progress}%</span>
                 </div>
                  <Progress value={progress} aria-label={`Comparison progress ${progress}%`} className="h-2" />
@@ -97,7 +105,7 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
              {/* Error Message */}
              {isError && (
                   <div className="pt-4 border-t border-border text-destructive text-sm">
-                     Failed to get response for this model.
+                     {errorMessage || 'Failed to get response for this model.'}
                  </div>
              )}
 
@@ -119,3 +127,4 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
         </Card>
     );
 }
+```
