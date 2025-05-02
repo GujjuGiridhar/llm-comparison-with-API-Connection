@@ -1,3 +1,4 @@
+// src/app/compare/page.tsx
 "use client";
 
 import * as React from "react";
@@ -18,8 +19,9 @@ import { ResultCard } from "@/components/result-card";
 import type { PerformanceResult, ComparisonLog } from "@/types/compare";
 import { useToast } from "@/hooks/use-toast";
 import { LogViewer } from "@/components/log-viewer";
-import { MetricsVerificationDialog } from "@/components/metrics-verification-dialog"; // Import the new dialog
-import { TogetherApiTesterDialog } from "@/components/together-api-tester-dialog"; // Import the new dialog
+import { MetricsVerificationDialog } from "@/components/metrics-verification-dialog"; // Import the verification dialog
+import { TogetherApiTesterDialog } from "@/components/together-api-tester-dialog"; // Import the Together API tester dialog
+import { ApiRequestTesterDialog } from "@/components/api-request-tester-dialog"; // Import the new API Request tester dialog
 
 const LOGS_STORAGE_KEY = 'comparison_logs';
 const MAX_LOGS = 20; // Limit the number of logs stored
@@ -32,7 +34,8 @@ export default function ComparePage() {
   const [connections, setConnections] = React.useState<Connection[]>([]);
   const [isLogViewerOpen, setIsLogViewerOpen] = React.useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = React.useState(false); // State for verification dialog
-  const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false); // New state for Together API tester dialog
+  const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false); // State for Together API tester dialog
+  const [isApiTesterOpen, setIsApiTesterOpen] = React.useState(false); // State for the new API Request Tester dialog
   const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
   const [lastRunTimestamp, setLastRunTimestamp] = React.useState<Date | null>(null); // Track last run time
 
@@ -336,7 +339,10 @@ export default function ComparePage() {
   const handleTogetherApiClick = () => {
      setIsTogetherApiTesterOpen(true);
   }
-  const handleApiTestClick = () => toast({ title: "Action: API Test (Not Implemented)" });
+  // Updated handler for API Test button
+  const handleApiTestClick = () => {
+      setIsApiTesterOpen(true);
+  };
 
   // Refresh button handler
   const handleRefreshClick = () => {
@@ -459,6 +465,7 @@ export default function ComparePage() {
                saveLogs([]); // Clear from storage as well
                toast({ title: "Logs Cleared" });
             }}
+           onRefresh={handleRefreshClick} // Pass refresh handler
        />
 
         {/* Metrics Verification Modal */}
@@ -475,7 +482,15 @@ export default function ComparePage() {
             isOpen={isTogetherApiTesterOpen}
             onClose={() => setIsTogetherApiTesterOpen(false)}
         />
+
+         {/* API Request Tester Modal */}
+         <ApiRequestTesterDialog
+             isOpen={isApiTesterOpen}
+             onClose={() => setIsApiTesterOpen(false)}
+             // You might pass default values based on selected connections or last run
+             // defaultBaseUrl={...}
+             // defaultModelName={...}
+         />
     </>
   );
 }
-
