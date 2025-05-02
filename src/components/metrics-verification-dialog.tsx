@@ -131,8 +131,8 @@ export function MetricsVerificationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* Increased max-height and set height to allow content to define size */}
-      <DialogContent className="max-w-2xl p-0 max-h-[90vh] h-auto flex flex-col">
+      {/* Make DialogContent a flex column with max height */}
+      <DialogContent className="max-w-2xl p-0 max-h-[90vh] flex flex-col">
         <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between flex-shrink-0">
           <DialogTitle className="text-lg">Metrics Verification</DialogTitle>
            <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export function MetricsVerificationDialog({
            </div>
         </DialogHeader>
 
-        {/* Make Tabs container flexible */}
+        {/* Make this content area flexible and scrollable */}
         <div className="flex-1 overflow-y-auto p-4">
           <Tabs defaultValue="verification" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -202,7 +202,7 @@ export function MetricsVerificationDialog({
             </TabsContent>
 
             <TabsContent value="rawLog">
-              {/* Set max height for scroll area */}
+              {/* Set max height for scroll area within the raw log tab */}
               <ScrollArea className="max-h-96 border rounded-md">
                   <pre className="text-xs bg-muted/50 p-4 overflow-x-auto">
                     {logEntry ? JSON.stringify(logEntry, null, 2) : "No log data available."}
