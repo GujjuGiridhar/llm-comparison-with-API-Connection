@@ -1,4 +1,3 @@
-// src/app/compare/page.tsx
 "use client";
 
 import * as React from "react";
@@ -20,6 +19,7 @@ import type { PerformanceResult, ComparisonLog } from "@/types/compare";
 import { useToast } from "@/hooks/use-toast";
 import { LogViewer } from "@/components/log-viewer";
 import { MetricsVerificationDialog } from "@/components/metrics-verification-dialog"; // Import the new dialog
+import { TogetherApiTesterDialog } from "@/components/together-api-tester-dialog"; // Import the new dialog
 
 const LOGS_STORAGE_KEY = 'comparison_logs';
 const MAX_LOGS = 20; // Limit the number of logs stored
@@ -32,6 +32,7 @@ export default function ComparePage() {
   const [connections, setConnections] = React.useState<Connection[]>([]);
   const [isLogViewerOpen, setIsLogViewerOpen] = React.useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = React.useState(false); // State for verification dialog
+  const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false); // New state for Together API tester dialog
   const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
   const [lastRunTimestamp, setLastRunTimestamp] = React.useState<Date | null>(null); // Track last run time
 
@@ -332,7 +333,9 @@ export default function ComparePage() {
           });
       }
   };
-  const handleTogetherApiClick = () => toast({ title: "Action: Together API (Not Implemented)" });
+  const handleTogetherApiClick = () => {
+     setIsTogetherApiTesterOpen(true);
+  }
   const handleApiTestClick = () => toast({ title: "Action: API Test (Not Implemented)" });
 
   // Refresh button handler
@@ -466,6 +469,13 @@ export default function ComparePage() {
            logEntry={comparisonLogs.length > 0 ? comparisonLogs[0] : null}
            onRefresh={handleRefreshClick} // Pass the refresh handler
        />
+
+        {/* Together API Tester Modal */}
+        <TogetherApiTesterDialog
+            isOpen={isTogetherApiTesterOpen}
+            onClose={() => setIsTogetherApiTesterOpen(false)}
+        />
     </>
   );
 }
+
