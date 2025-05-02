@@ -19,10 +19,12 @@ export default function Home() {
           response times, and quality scores to choose the right model for your needs.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Settings className="mr-2 h-5 w-5" />
-            Configure Models
-          </Button>
+          <Link href="/settings"> {/* Link to /settings */}
+            <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
+              <Settings className="mr-2 h-5 w-5" />
+              Configure Models
+            </Button>
+          </Link>
           {/* The "Start Comparing" button will likely link to the /compare page */}
           <Link href="/compare">
             <Button size="lg" variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary/90 w-full sm:w-auto">
