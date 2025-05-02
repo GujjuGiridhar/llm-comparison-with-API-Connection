@@ -2,10 +2,11 @@
 "use client";
 
 import * as React from "react";
+import Link from 'next/link'; // Import Link for external link
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, CheckCircle } from "lucide-react";
+import { ExternalLink } from "lucide-react"; // Import ExternalLink icon
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,14 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+// Removed Alert imports as testing is removed
+// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+// import { AlertTriangle, CheckCircle } from "lucide-react";
+
 
 // Mock supported providers and their models
 const supportedProviders = {
-  openai: { name: "OpenAI", models: ["gpt-4", "gpt-3.5-turbo"], requiresApiKey: true, requiresApiUrl: false },
-  anthropic: { name: "Anthropic", models: ["claude-3-opus-20240229", "claude-3-sonnet-20240229"], requiresApiKey: true, requiresApiUrl: false },
-  google: { name: "Google AI", models: ["gemini-pro", "gemini-1.5-pro-latest"], requiresApiKey: true, requiresApiUrl: false },
-  together: { name: "Together AI", models: ["llama-2-70b-chat", "mistral-7b-instruct"], requiresApiKey: true, requiresApiUrl: true },
+  openai: { name: "OpenAI", models: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"], requiresApiKey: true, requiresApiUrl: false, defaultUrl: null, getApiKeyUrl: "https://platform.openai.com/api-keys" },
+  anthropic: { name: "Anthropic", models: ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"], requiresApiKey: true, requiresApiUrl: false, defaultUrl: null, getApiKeyUrl: "https://console.anthropic.com/settings/keys" },
+  google: { name: "Google AI", models: ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-pro"], requiresApiKey: true, requiresApiUrl: false, defaultUrl: null, getApiKeyUrl: "https://aistudio.google.com/app/apikey" },
+  together: { name: "Together AI", models: ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x7B-Instruct-v0.1", "mistralai/Mistral-7B-Instruct-v0.2"], requiresApiKey: true, requiresApiUrl: true, defaultUrl: "https://api.together.xyz/v1", getApiKeyUrl: "https://api.together.xyz/settings/api-keys" },
   // Add more providers as needed
 };
 
@@ -46,9 +50,18 @@ const ApiFormSchema = z.object({
   apiKey: z.string().optional(), // Optional initially, made required based on provider
   apiUrl: z.string().optional(), // Optional initially, made required based on provider
   model: z.string().min(1, "Please select a model after choosing a provider."),
+  // Added Temperature and Max Tokens
+  temperature: z.preprocess(
+    (val) => (val === "" ? undefined : Number(val)),
+    z.number().min(0).max(2).optional().default(0.7) // Allow higher temps if needed, default 0.7
+  ),
+  maxTokens: z.preprocess(
+    (val) => (val === "" ? undefined : Number(val)),
+    z.number().int().positive().optional().default(1024) // Default 1024
+  ),
 }).refine(data => {
   const provider = supportedProviders[data.providerName as ProviderKey];
-  return !provider?.requiresApiKey || (provider.requiresApiKey && !!data.apiKey);
+  return !provider?.requiresApiKey || (provider.requiresApiKey && !!data.apiKey?.trim());
 }, {
   message: "API Key is required for this provider.",
   path: ["apiKey"],
@@ -71,7 +84,7 @@ const ApiFormSchema = z.object({
 }).refine(data => {
     const provider = supportedProviders[data.providerName as ProviderKey];
     // Require API URL only if the provider needs it
-    return !provider?.requiresApiUrl || (provider.requiresApiUrl && !!data.apiUrl);
+    return !provider?.requiresApiUrl || (provider.requiresApiUrl && !!data.apiUrl?.trim());
 }, {
     message: "API URL is required for this provider.",
     path: ["apiUrl"],
@@ -101,90 +114,54 @@ export function ApiForm({
       apiKey: "",
       apiUrl: "",
       model: "",
+      temperature: 0.7, // Add default
+      maxTokens: 1024, // Add default
     },
   });
 
-  const [isTesting, setIsTesting] = React.useState(false);
-  const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(null);
+  // Removed testing state
+  // const [isTesting, setIsTesting] = React.useState(false);
+  // const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(null);
 
   const selectedProviderKey = form.watch("providerName") as ProviderKey | undefined;
   const selectedProviderConfig = selectedProviderKey ? supportedProviders[selectedProviderKey] : null;
   const availableModels = selectedProviderConfig?.models || [];
 
-  // Reset model selection when provider changes
+  // Reset model selection and API URL when provider changes
   React.useEffect(() => {
     if (selectedProviderKey) {
+        const providerConfig = supportedProviders[selectedProviderKey];
         // If editing and the initial model belongs to the new provider, keep it. Otherwise reset.
-        if (!initialData || initialData.providerName !== selectedProviderKey || !selectedProviderConfig?.models.includes(initialData.model)) {
+        if (!initialData || initialData.providerName !== selectedProviderKey || !providerConfig?.models.includes(initialData.model)) {
             form.setValue('model', '', { shouldValidate: true });
         } else {
              form.setValue('model', initialData.model, { shouldValidate: true }); // Keep existing valid model
         }
+        // Set default API URL if provider changes and it has a default
+        if (providerConfig?.requiresApiUrl) {
+            const currentApiUrl = form.getValues('apiUrl');
+             // Set default only if editing and provider changes, or if adding new and no URL yet
+            if ((initialData && initialData.providerName !== selectedProviderKey) || !currentApiUrl) {
+                form.setValue('apiUrl', providerConfig.defaultUrl || '', { shouldValidate: true });
+            }
+        } else {
+             form.setValue('apiUrl', '', { shouldValidate: true }); // Clear API URL if not required
+        }
+
     } else {
        form.setValue('model', '', { shouldValidate: true });
+       form.setValue('apiUrl', '', { shouldValidate: true });
     }
-    form.trigger(['apiKey', 'apiUrl']); // Re-validate API key/URL requirements
-    setTestResult(null); // Reset test result on provider change
-  }, [selectedProviderKey, form, initialData, selectedProviderConfig?.models]);
+    form.trigger(['apiKey', 'apiUrl', 'model']); // Re-validate API key/URL/model requirements
+    // Removed test result reset
+    // setTestResult(null);
+  }, [selectedProviderKey, form, initialData, selectedProviderConfig?.models, selectedProviderConfig?.requiresApiUrl, selectedProviderConfig?.defaultUrl]);
 
-  // Simulate testing connection (replace with actual API call if possible/needed)
-  const handleTestClick = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    const { apiKey, apiUrl, providerName } = form.getValues();
-    const provider = supportedProviders[providerName as ProviderKey];
+  // Removed handleTestClick function
 
-    // Basic validation before "testing"
-    if (provider?.requiresApiKey && !apiKey) {
-        setTestResult({ success: false, message: "API Key is required to test this connection." });
-        setIsTesting(false);
-        return;
-    }
-     if (provider?.requiresApiUrl && !apiUrl) {
-        setTestResult({ success: false, message: "API URL is required to test this connection." });
-        setIsTesting(false);
-        return;
-    }
-     if (provider?.requiresApiUrl && apiUrl) {
-        try {
-            new URL(apiUrl); // Basic URL validation
-        } catch {
-             setTestResult({ success: false, message: "Invalid API URL format provided." });
-             setIsTesting(false);
-             return;
-        }
-    }
-
-
-    try {
-      console.log(`Testing connection for ${provider?.name}...`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-
-      // --- Mock API Test Logic ---
-      // For simplicity, assume test passes if required fields seem present.
-      // A real test would involve making a simple call (e.g., list models)
-      let success = true;
-      let message = `Connection test simulated for ${provider?.name || 'provider'}. Ensure credentials are correct.`;
-
-      if (!provider) {
-        success = false;
-        message = "Please select a provider first.";
-      }
-      // Add more specific mock failures if needed based on provider/credentials
-      // else if (provider?.requiresApiKey && apiKey === 'fail') { ... }
-      // --- End Mock API Test Logic ---
-
-      setTestResult({ success, message });
-
-    } catch (error) {
-      console.error("Test connection error:", error);
-      setTestResult({ success: false, message: "An error occurred during the test simulation." });
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const canSaveChanges = form.formState.isValid; // Simple check for now
+  // Update canSaveChanges logic if needed (e.g., if test was required before)
+  // For now, formState.isValid should be sufficient
+  const canSaveChanges = form.formState.isValid;
 
   return (
     <Form {...form}>
@@ -244,29 +221,40 @@ export function ApiForm({
             name="apiKey"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>API Key</FormLabel>
+                 <div className="flex items-center justify-between">
+                    <FormLabel>API Key</FormLabel>
+                    {selectedProviderConfig.getApiKeyUrl && (
+                      <Link href={selectedProviderConfig.getApiKeyUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center">
+                        Get API Key <ExternalLink className="ml-1 h-3 w-3" />
+                      </Link>
+                    )}
+                 </div>
                 <FormControl>
-                  <Input type="password" placeholder="Enter your API Key" {...field} value={field.value || ''} disabled={isLoading || isTesting} />
+                   {/* Use type="password" to obscure the key */}
+                  <Input type="password" placeholder="Enter your API Key" {...field} value={field.value || ''} disabled={isLoading} />
                 </FormControl>
-                <FormDescription>Your secret API key for {selectedProviderConfig.name}.</FormDescription>
+                 {/* Removed description as Get API Key link is added
+                 <FormDescription>Your secret API key for {selectedProviderConfig.name}.</FormDescription>
+                 */}
                 <FormMessage />
               </FormItem>
             )}
           />
         )}
 
-        {/* API URL */}
+        {/* API URL (Base URL) */}
          {selectedProviderConfig?.requiresApiUrl && (
           <FormField
             control={form.control}
             name="apiUrl"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>API URL</FormLabel>
+                <FormLabel>Base URL</FormLabel>
                  <FormControl>
-                    <Input placeholder={`e.g., ${selectedProviderKey === 'together' ? 'https://api.together.xyz/v1' : 'Enter API URL'}`} {...field} value={field.value || ''} disabled={isLoading || isTesting} />
+                    <Input placeholder={selectedProviderConfig.defaultUrl || 'Enter API Base URL'} {...field} value={field.value || ''} disabled={isLoading} />
                  </FormControl>
-                 <FormDescription>The base URL for the {selectedProviderConfig.name} API.</FormDescription>
+                  {/* Updated Description */}
+                 <FormDescription>The base URL for the API (usually you can keep the default).</FormDescription>
                  <FormMessage />
               </FormItem>
             )}
@@ -301,29 +289,55 @@ export function ApiForm({
                   {selectedProviderKey && availableModels.length === 0 && <SelectItem value="-" disabled>No models listed for this provider</SelectItem>}
                 </SelectContent>
               </Select>
+               {/* Removed description for model select
                <FormDescription>Choose the model provided by {selectedProviderConfig?.name || 'the selected provider'}.</FormDescription>
+               */}
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Test Connection Button and Result */}
-         {selectedProviderKey && ( // Only show test button if provider is selected
-            <div className="space-y-2">
-                <Button type="button" variant="outline" onClick={handleTestClick} disabled={isLoading || isTesting || !selectedProviderKey}>
-                {isTesting ? "Testing..." : "Test Connection"}
-                </Button>
-                {testResult && (
-                <Alert variant={testResult.success ? "default" : "destructive"} className={testResult.success ? "border-green-500/50 dark:border-green-600/60" : ""}>
-                    {testResult.success ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                    <AlertTitle>{testResult.success ? "Connection Test Simulated" : "Connection Test Failed"}</AlertTitle>
-                    <AlertDescription>
-                    {testResult.message}
-                    </AlertDescription>
-                </Alert>
+        {/* Grid for Temperature & Max Tokens */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+            {/* Temperature */}
+            <FormField
+                control={form.control}
+                name="temperature"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Temperature</FormLabel>
+                    <FormControl>
+                    <Input type="number" step="0.1" min="0" max="2" placeholder="0.7" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
+                    </FormControl>
+                    {/* Removed description
+                    <FormDescription>Controls randomness (0-2).</FormDescription>
+                    */}
+                    <FormMessage />
+                </FormItem>
                 )}
-            </div>
-         )}
+            />
+
+            {/* Max Tokens */}
+            <FormField
+                control={form.control}
+                name="maxTokens"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Max Tokens</FormLabel>
+                    <FormControl>
+                    <Input type="number" placeholder="1024" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
+                    </FormControl>
+                    {/* Removed description
+                    <FormDescription>Max response length.</FormDescription>
+                    */}
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
+
+
+        {/* Removed Test Connection Button and Result */}
 
 
         {/* Action Buttons */}
