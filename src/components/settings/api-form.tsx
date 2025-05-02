@@ -26,17 +26,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Removed Alert imports as testing is removed
-// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// import { AlertTriangle, CheckCircle } from "lucide-react";
 
 
 // Mock supported providers and their models
 const supportedProviders = {
-  openai: { name: "OpenAI", models: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"], requiresApiKey: true, requiresApiUrl: false, defaultUrl: null, getApiKeyUrl: "https://platform.openai.com/api-keys" },
-  anthropic: { name: "Anthropic", models: ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"], requiresApiKey: true, requiresApiUrl: false, defaultUrl: null, getApiKeyUrl: "https://console.anthropic.com/settings/keys" },
-  google: { name: "Google AI", models: ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-pro"], requiresApiKey: true, requiresApiUrl: false, defaultUrl: null, getApiKeyUrl: "https://aistudio.google.com/app/apikey" },
-  together: { name: "Together AI", models: ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x7B-Instruct-v0.1", "mistralai/Mistral-7B-Instruct-v0.2"], requiresApiKey: true, requiresApiUrl: true, defaultUrl: "https://api.together.xyz/v1", getApiKeyUrl: "https://api.together.xyz/settings/api-keys" },
+  openai: {
+    name: "OpenAI",
+    models: [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4-turbo",
+      "gpt-4",
+      "gpt-3.5-turbo",
+    ],
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultUrl: null,
+    getApiKeyUrl: "https://platform.openai.com/api-keys"
+  },
+  anthropic: {
+    name: "Anthropic",
+    models: [
+      "claude-3-opus-20240229",
+      "claude-3-sonnet-20240229",
+      "claude-3-haiku-20240307",
+      "claude-3-5-sonnet-20240620" // Added new Claude 3.5 model
+    ],
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultUrl: null,
+    getApiKeyUrl: "https://console.anthropic.com/settings/keys"
+  },
+  google: {
+    name: "Google AI",
+    models: [
+      "gemini-1.5-pro-latest",
+      "gemini-1.5-flash-latest",
+      "gemini-pro", // Older, but still available
+      "gemini-1.0-pro"
+    ],
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultUrl: null,
+    getApiKeyUrl: "https://aistudio.google.com/app/apikey"
+  },
+  together: {
+    name: "Together AI",
+    models: [
+      "meta-llama/Llama-3-70b-chat-hf",
+      "meta-llama/Llama-3-8b-chat-hf",
+      "mistralai/Mixtral-8x7B-Instruct-v0.1",
+      "mistralai/Mistral-7B-Instruct-v0.2",
+      "mistralai/Mistral-7B-Instruct-v0.3", // Added v0.3
+      "databricks/dbrx-instruct",
+      "Qwen/Qwen1.5-72B-Chat",
+      "google/gemma-7b-it",
+      "togethercomputer/StripedHyena-Nous-7B"
+    ],
+    requiresApiKey: true,
+    requiresApiUrl: true,
+    defaultUrl: "https://api.together.xyz/v1",
+    getApiKeyUrl: "https://api.together.xyz/settings/api-keys"
+  },
   // Add more providers as needed
 };
 
@@ -117,20 +168,22 @@ export function ApiForm({
       temperature: 0.7, // Add default
       maxTokens: 1024, // Add default
     },
+    mode: "onChange", // Validate on change to enable/disable save button correctly
   });
 
-  // Removed testing state
-  // const [isTesting, setIsTesting] = React.useState(false);
-  // const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(null);
 
   const selectedProviderKey = form.watch("providerName") as ProviderKey | undefined;
   const selectedProviderConfig = selectedProviderKey ? supportedProviders[selectedProviderKey] : null;
   const availableModels = selectedProviderConfig?.models || [];
+  const apiKeyRequired = selectedProviderConfig?.requiresApiKey || false;
+  const apiUrlRequired = selectedProviderConfig?.requiresApiUrl || false;
+
 
   // Reset model selection and API URL when provider changes
   React.useEffect(() => {
-    // Don't run this effect if initialData exists and provider hasn't changed
-     if (initialData && initialData.providerName === selectedProviderKey) {
+    const currentProvider = form.getValues("providerName") as ProviderKey | undefined;
+     // Don't run this effect if initialData exists and provider hasn't changed during initial load
+     if (initialData && initialData.providerName === currentProvider && form.formState.isDirty === false) {
        // Ensure model is set correctly if editing
        if (selectedProviderConfig?.models.includes(initialData.model)) {
          form.setValue('model', initialData.model, { shouldValidate: true });
@@ -139,13 +192,16 @@ export function ApiForm({
        }
        // Set initial URL if editing
        form.setValue('apiUrl', initialData.apiUrl || (selectedProviderConfig?.defaultUrl || ''), { shouldValidate: true });
-       form.trigger(['apiKey', 'apiUrl', 'model']);
+       // Set API Key if editing
+       form.setValue('apiKey', initialData.apiKey || '', { shouldValidate: true });
+       // Trigger validation after setting initial values
+       form.trigger(['apiKey', 'apiUrl', 'model', 'connectionName']);
        return;
      }
 
 
-    if (selectedProviderKey) {
-        const providerConfig = supportedProviders[selectedProviderKey];
+    if (currentProvider) {
+        const providerConfig = supportedProviders[currentProvider];
          form.setValue('model', '', { shouldValidate: true }); // Reset model when provider changes
 
         // Set default API URL if provider changes and it has a default
@@ -154,20 +210,18 @@ export function ApiForm({
         } else {
              form.setValue('apiUrl', '', { shouldValidate: true }); // Clear API URL if not required
         }
+         // Clear API Key when provider changes (for safety, user should re-enter)
+         form.setValue('apiKey', '', { shouldValidate: true });
 
     } else {
        form.setValue('model', '', { shouldValidate: true });
        form.setValue('apiUrl', '', { shouldValidate: true });
+       form.setValue('apiKey', '', { shouldValidate: true });
     }
-    form.trigger(['apiKey', 'apiUrl', 'model']); // Re-validate API key/URL/model requirements
-    // Removed test result reset
-    // setTestResult(null);
-  }, [selectedProviderKey, form, initialData, selectedProviderConfig?.models, selectedProviderConfig?.requiresApiUrl, selectedProviderConfig?.defaultUrl]);
+     // Trigger validation after programmatic changes
+     form.trigger(['apiKey', 'apiUrl', 'model', 'connectionName']);
+  }, [form.watch('providerName'), form, initialData, selectedProviderConfig?.models, selectedProviderConfig?.requiresApiUrl, selectedProviderConfig?.defaultUrl]); // Watch providerName directly
 
-  // Removed handleTestClick function
-
-  // Update canSaveChanges logic if needed (e.g., if test was required before)
-  // For now, formState.isValid should be sufficient
   const canSaveChanges = form.formState.isValid;
 
   return (
@@ -199,6 +253,8 @@ export function ApiForm({
               <Select
                 onValueChange={(value) => {
                     field.onChange(value);
+                     // Manually trigger validation for dependent fields after provider change
+                    form.trigger(['apiKey', 'apiUrl', 'model']);
                 }}
                 value={field.value || ""}
                 disabled={isLoading}
@@ -222,7 +278,7 @@ export function ApiForm({
         />
 
         {/* API Key */}
-        {selectedProviderConfig?.requiresApiKey && (
+        {apiKeyRequired && (
           <FormField
             control={form.control}
             name="apiKey"
@@ -230,7 +286,7 @@ export function ApiForm({
               <FormItem>
                  <div className="flex items-center justify-between">
                     <FormLabel>API Key</FormLabel>
-                    {selectedProviderConfig.getApiKeyUrl && (
+                    {selectedProviderConfig?.getApiKeyUrl && (
                       <Link href={selectedProviderConfig.getApiKeyUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center">
                         Get API Key <ExternalLink className="ml-1 h-3 w-3" />
                       </Link>
@@ -240,9 +296,6 @@ export function ApiForm({
                    {/* Use type="password" to obscure the key */}
                   <Input type="password" placeholder="Enter your API Key" {...field} value={field.value || ''} disabled={isLoading} />
                 </FormControl>
-                 {/* Removed description as Get API Key link is added
-                 <FormDescription>Your secret API key for {selectedProviderConfig.name}.</FormDescription>
-                 */}
                 <FormMessage />
               </FormItem>
             )}
@@ -250,7 +303,7 @@ export function ApiForm({
         )}
 
         {/* API URL (Base URL) */}
-         {selectedProviderConfig?.requiresApiUrl && (
+         {apiUrlRequired && (
           <FormField
             control={form.control}
             name="apiUrl"
@@ -258,10 +311,10 @@ export function ApiForm({
               <FormItem>
                 <FormLabel>Base URL</FormLabel>
                  <FormControl>
-                    <Input placeholder={selectedProviderConfig.defaultUrl || 'Enter API Base URL'} {...field} value={field.value || ''} disabled={isLoading} />
+                    <Input placeholder={selectedProviderConfig?.defaultUrl || 'Enter API Base URL'} {...field} value={field.value || ''} disabled={isLoading} />
                  </FormControl>
                   {/* Updated Description */}
-                 <FormDescription>The base URL for the API (usually you can keep the default).</FormDescription>
+                 <FormDescription>The base URL for the API {selectedProviderConfig?.defaultUrl ? "(usually you can keep the default)" : ""}.</FormDescription>
                  <FormMessage />
               </FormItem>
             )}
@@ -296,7 +349,6 @@ export function ApiForm({
                   {selectedProviderKey && availableModels.length === 0 && <SelectItem value="-" disabled>No models listed for this provider</SelectItem>}
                 </SelectContent>
               </Select>
-               {/* Removed description for model select */}
               <FormMessage />
             </FormItem>
           )}
@@ -314,9 +366,6 @@ export function ApiForm({
                     <FormControl>
                     <Input type="number" step="0.1" min="0" max="2" placeholder="0.7" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
                     </FormControl>
-                    {/* Removed description
-                    <FormDescription>Controls randomness (0-2).</FormDescription>
-                    */}
                     <FormMessage />
                 </FormItem>
                 )}
@@ -332,17 +381,11 @@ export function ApiForm({
                     <FormControl>
                     <Input type="number" placeholder="1024" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} disabled={isLoading} />
                     </FormControl>
-                    {/* Removed description
-                    <FormDescription>Max response length.</FormDescription>
-                    */}
                     <FormMessage />
                 </FormItem>
                 )}
             />
         </div>
-
-
-        {/* Removed Test Connection Button and Result */}
 
 
         {/* Action Buttons */}
