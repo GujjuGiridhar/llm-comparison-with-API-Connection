@@ -44,7 +44,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-        <Card className="text-left card-glow bg-card/70 border-border"> {/* Added card-glow and adjusted bg */}
+        <Card className="text-left bg-card/70 border-border"> {/* Removed card-glow */}
           <CardHeader className="bg-card/90 rounded-t-lg"> {/* Added background color to header */}
             <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Multiple Providers</CardTitle>
@@ -55,7 +55,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left card-glow bg-card/70 border-border"> {/* Added card-glow and adjusted bg */}
+        <Card className="text-left bg-card/70 border-border"> {/* Removed card-glow */}
           <CardHeader className="bg-card/90 rounded-t-lg"> {/* Added background color to header */}
             <BarChart className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Real-time Analysis</CardTitle>
@@ -66,7 +66,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left card-glow bg-card/70 border-border"> {/* Added card-glow and adjusted bg */}
+        <Card className="text-left bg-card/70 border-border"> {/* Removed card-glow */}
           <CardHeader className="bg-card/90 rounded-t-lg"> {/* Added background color to header */}
             <Puzzle className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Easy Configuration</CardTitle>
