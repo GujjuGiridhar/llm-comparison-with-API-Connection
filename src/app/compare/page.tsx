@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileText, CheckSquare, Combine, FlaskConical, RefreshCw, BarChart, Logs } from "lucide-react";
+import { FileText, CheckSquare, Combine, FlaskConical, RefreshCw, BarChart, Logs, Palette } from "lucide-react"; // Added Palette
 import type { Connection } from "@/app/settings/page";
 import { ComparisonSetup } from "@/components/comparison-setup";
 import { PerformanceChart } from "@/components/performance-chart";
@@ -19,13 +19,18 @@ import { ResultCard } from "@/components/result-card";
 import type { PerformanceResult, ComparisonLog } from "@/types/compare";
 import { useToast } from "@/hooks/use-toast";
 import { LogViewer } from "@/components/log-viewer";
-import { MetricsVerificationDialog } from "@/components/metrics-verification-dialog"; // Import the verification dialog
-import { TogetherApiTesterDialog } from "@/components/together-api-tester-dialog"; // Import the Together API tester dialog
-import { ApiRequestTesterDialog } from "@/components/api-request-tester-dialog"; // Import the new API Request tester dialog
+import { MetricsVerificationDialog } from "@/components/metrics-verification-dialog";
+import { TogetherApiTesterDialog } from "@/components/together-api-tester-dialog";
+import { ApiRequestTesterDialog } from "@/components/api-request-tester-dialog";
+import { CustomizeColorsDialog } from "@/components/customize-colors-dialog"; // Import CustomizeColorsDialog
+import type { ChartConfig } from "@/components/ui/chart"; // Import ChartConfig type
+import { generateDefaultChartConfig } from "@/lib/chart-utils"; // Import helper
 
 const LOGS_STORAGE_KEY = 'comparison_logs';
-const MAX_LOGS = 20; // Limit the number of logs stored
-const CONNECTIONS_STORAGE_KEY = 'llm_connections'; // Use the same key as settings
+const MAX_LOGS = 20;
+const CONNECTIONS_STORAGE_KEY = 'llm_connections';
+const CHART_CONFIG_STORAGE_KEY = 'llm_chart_config'; // Key for storing chart colors
+
 
 // Helper function to get mock connections (same as in settings)
 const getMockConnections = (): Connection[] => [
@@ -74,18 +79,20 @@ export default function ComparePage() {
   const [results, setResults] = React.useState<PerformanceResult[]>([]);
   const [connections, setConnections] = React.useState<Connection[]>([]);
   const [isLogViewerOpen, setIsLogViewerOpen] = React.useState(false);
-  const [isVerificationOpen, setIsVerificationOpen] = React.useState(false); // State for verification dialog
-  const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false); // State for Together API tester dialog
-  const [isApiTesterOpen, setIsApiTesterOpen] = React.useState(false); // State for the new API Request Tester dialog
+  const [isVerificationOpen, setIsVerificationOpen] = React.useState(false);
+  const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false);
+  const [isApiTesterOpen, setIsApiTesterOpen] = React.useState(false);
   const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
+  const [isCustomizeColorsOpen, setIsCustomizeColorsOpen] = React.useState(false); // State for color dialog
+  const [chartConfig, setChartConfig] = React.useState<ChartConfig>({}); // State for chart config
 
 
-  // Load connections and logs from localStorage on mount
+  // Load connections, logs, and chart config from localStorage on mount
   React.useEffect(() => {
     // --- Load Connections ---
     const savedConnections = localStorage.getItem(CONNECTIONS_STORAGE_KEY);
     let loadedConnections: Connection[] = [];
-    let useMocks = false; // Flag to track if mocks were used
+    let useMocks = false;
 
     if (savedConnections) {
       try {
@@ -94,31 +101,23 @@ export default function ComparePage() {
             loadedConnections = parsedConnections;
         } else {
             console.error("ComparePage: Invalid data format in localStorage for connections. Expected array.");
-            // Optionally clear invalid data, or decide to use mocks
-            // localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
+            localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
         }
       } catch (error) {
         console.error("ComparePage: Failed to parse connections from localStorage", error);
-        // Clear invalid data if parsing fails
         localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
       }
     } else {
-        // ONLY add mock data if the key doesn't exist at all
         console.log("ComparePage: No connections found in localStorage. Adding mock data.");
         loadedConnections = getMockConnections();
-        localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(loadedConnections)); // Save mocks
+        localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(loadedConnections));
         useMocks = true;
     }
 
-    // Filter for active connections AFTER loading or generating mocks
     const activeConnections = loadedConnections.filter(conn => conn.isActive);
 
-    // If there are still no active connections (even after loading/mocks), maybe show a message or use empty array
     if (activeConnections.length === 0 && !useMocks) {
         console.warn("ComparePage: No active connections loaded from localStorage.");
-        // Consider adding mocks here if loadedConnections was empty initially,
-        // but parsed correctly (e.g., user deactivated all)
-        // activeConnections = getMockConnections().filter(conn => conn.isActive);
     }
 
      setConnections(activeConnections); // Set only active connections for the setup component
@@ -131,9 +130,34 @@ export default function ComparePage() {
              setComparisonLogs(parsedLogs);
          } catch (error) {
              console.error("Failed to parse logs from localStorage", error);
-             localStorage.removeItem(LOGS_STORAGE_KEY); // Clear invalid data
+             localStorage.removeItem(LOGS_STORAGE_KEY);
          }
      }
+
+     // --- Load Chart Config ---
+     const savedChartConfig = localStorage.getItem(CHART_CONFIG_STORAGE_KEY);
+     let initialChartConfig: ChartConfig = {};
+     if (savedChartConfig) {
+         try {
+             initialChartConfig = JSON.parse(savedChartConfig) as ChartConfig;
+             // Basic validation
+             if (typeof initialChartConfig !== 'object' || initialChartConfig === null) {
+                 initialChartConfig = {};
+                 localStorage.removeItem(CHART_CONFIG_STORAGE_KEY);
+             }
+         } catch (error) {
+             console.error("Failed to parse chart config from localStorage", error);
+             initialChartConfig = {};
+             localStorage.removeItem(CHART_CONFIG_STORAGE_KEY);
+         }
+     }
+
+     // Ensure all current active connections have a default config if not loaded
+     const updatedConfig = generateDefaultChartConfig(activeConnections, initialChartConfig);
+     setChartConfig(updatedConfig);
+     // Save potentially updated config back to storage
+     localStorage.setItem(CHART_CONFIG_STORAGE_KEY, JSON.stringify(updatedConfig));
+
 
   }, []); // Empty dependency array
 
@@ -152,7 +176,7 @@ export default function ComparePage() {
   // Function to save logs to localStorage
   const saveLogs = (logs: ComparisonLog[]) => {
     try {
-        const logsToSave = logs.slice(-MAX_LOGS); // Keep only the latest logs
+        const logsToSave = logs.slice(-MAX_LOGS);
         localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(logsToSave));
     } catch (error) {
         console.error("Failed to save logs to localStorage", error);
@@ -162,12 +186,37 @@ export default function ComparePage() {
             variant: "destructive",
         });
     }
-};
+  };
+
+  // Function to save chart config to localStorage
+  const saveChartConfig = (config: ChartConfig) => {
+      try {
+          localStorage.setItem(CHART_CONFIG_STORAGE_KEY, JSON.stringify(config));
+      } catch (error) {
+          console.error("Failed to save chart config to localStorage", error);
+          toast({
+              title: "Error Saving Chart Colors",
+              description: "Could not save chart color preferences.",
+              variant: "destructive",
+          });
+      }
+  };
+
+  // Callback for updating chart config from the dialog
+  const handleUpdateChartConfig = (newConfig: ChartConfig) => {
+      setChartConfig(newConfig);
+      saveChartConfig(newConfig); // Save updated config
+      setIsCustomizeColorsOpen(false); // Close dialog after saving
+      toast({
+          title: "Chart Colors Updated",
+          description: "Your color preferences have been saved.",
+      });
+  };
 
  const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
     console.log("Comparison submitted:", data);
-    const startTime = performance.now(); // Start timing the whole comparison
-    let currentResultsState: PerformanceResult[] = []; // Variable to hold the latest results state
+    const startTime = performance.now();
+    let currentResultsState: PerformanceResult[] = [];
 
     if (data.selectedConnectionIds.length === 0) {
         toast({
@@ -189,6 +238,18 @@ export default function ComparePage() {
     setIsLoading(true);
     setShowResults(true);
 
+     // Ensure chart config exists for all selected models before starting
+     const connectionsForRun = connections.filter(c => data.selectedConnectionIds.includes(c.id));
+     setChartConfig(prevConfig => {
+        const updatedConfig = generateDefaultChartConfig(connectionsForRun, prevConfig);
+        // Only save if there were actual updates
+        if (JSON.stringify(updatedConfig) !== JSON.stringify(prevConfig)) {
+            saveChartConfig(updatedConfig);
+        }
+        return updatedConfig;
+     });
+
+
     // Generate initial loading state for all selected models
     const initialLoadingResults: PerformanceResult[] = data.selectedConnectionIds.map(id => {
         const conn = connections.find(c => c.id === id);
@@ -197,6 +258,7 @@ export default function ComparePage() {
             connectionName: conn?.connectionName || `Model ${id.substring(0, 5)}`,
             modelName: conn?.model || 'unknown',
             status: 'running' as 'running',
+            // ... other fields initialized to undefined or default
             processingTime: undefined,
             responseTime: undefined,
             tokensPerSecond: undefined,
@@ -208,7 +270,7 @@ export default function ComparePage() {
         };
     });
     setResults(initialLoadingResults);
-    currentResultsState = initialLoadingResults; // Update tracker
+    currentResultsState = initialLoadingResults;
 
     try {
       // Simulate fetching results for each selected model
@@ -216,26 +278,21 @@ export default function ComparePage() {
         const conn = connections.find(c => c.id === id);
         const name = conn?.connectionName || `Model ${id.substring(0, 5)}`;
         const modelName = conn?.model || 'unknown';
-        let result: PerformanceResult | null = null; // Initialize result as null
+        let result: PerformanceResult | null = null;
 
         try {
           // Simulate API call delay
-          const delay = 500 + Math.random() * 2500; // 0.5s to 3s
+          const delay = 500 + Math.random() * 2500;
           await new Promise(resolve => setTimeout(resolve, delay));
 
-          // REMOVED: Simulated error generation
-          // if (Math.random() < 0.1) { // 10% chance of error
-          //     throw new Error("Simulated API Error");
-          // }
-
           // Generate mock performance data
-          const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
-          const responseTime = Math.max(50, parseFloat((delay * (0.1 + Math.random() * 0.3)).toFixed(0))); // e.g., 10-40% of total delay, in ms
+          const processingTime = parseFloat((delay / 1000).toFixed(2));
+          const responseTime = Math.max(50, parseFloat((delay * (0.1 + Math.random() * 0.3)).toFixed(0)));
           const completionTokens = 5 + Math.floor(Math.random() * 500);
-          const promptTokens = data.prompt.split(/\s+/).length; // Rough estimate
+          const promptTokens = data.prompt.split(/\s+/).length;
           const totalTokens = promptTokens + completionTokens;
           const tokensPerSecond = parseFloat((completionTokens / processingTime).toFixed(1)) || 0;
-          const elapsedTime = processingTime; // Simplified
+          const elapsedTime = processingTime;
 
           const mockOutput = `Mock response from ${name} (${modelName}) for prompt: "${data.prompt}".\n\nGenerated ${completionTokens} tokens in ${processingTime}s. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ${Math.random() > 0.5 ? 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.' : ''}`;
 
@@ -260,7 +317,7 @@ export default function ComparePage() {
 
         } catch (error: any) {
            console.error(`Error fetching result for ${name}:`, error);
-           result = { // Create an error result object
+           result = {
                connectionId: id,
                connectionName: name,
                modelName: modelName,
@@ -270,25 +327,25 @@ export default function ComparePage() {
                responseTime: undefined,
                tokensPerSecond: undefined,
                totalTokens: undefined,
-               promptTokens: data.prompt.split(/\s+/).length, // Prompt tokens might still be known
+               promptTokens: data.prompt.split(/\s+/).length,
                completionTokens: undefined,
                elapsedTime: undefined,
+               output: undefined, // Ensure output is undefined on error
            };
         }
 
-        // Update state incrementally as each promise resolves or rejects
+        // Update state incrementally
         setResults(prevResults => {
             const updated = prevResults.map(r => r.connectionId === id ? result! : r);
-            currentResultsState = updated; // Update tracker
+            currentResultsState = updated;
             return updated;
         });
-        return result; // Return the result (or error object)
+        return result;
       });
 
-      // Wait for all promises to settle (complete or error)
       await Promise.allSettled(resultPromises);
 
-    } catch (error) { // Catch errors in the overall setup/Promise handling
+    } catch (error) {
         console.error("Comparison failed:", error);
         toast({
             title: "Comparison Failed",
@@ -299,15 +356,14 @@ export default function ComparePage() {
             const updated = prevResults.map(r =>
                 r.status === 'running' ? { ...r, status: 'error', errorMessage: 'Overall comparison process failed.' } : r
             );
-            currentResultsState = updated; // Update tracker
+            currentResultsState = updated;
             return updated;
         });
     } finally {
         setIsLoading(false);
         const endTime = performance.now();
-        const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3)); // Total comparison duration in seconds
+        const totalDuration = parseFloat(((endTime - startTime) / 1000).toFixed(3));
 
-         // Use the final tracked state for logging
          const finalResultsForLog = currentResultsState.map(r => ({
              modelId: r.connectionId,
              modelName: r.modelName,
@@ -354,6 +410,29 @@ export default function ComparePage() {
           });
       }
   };
+   const handleCustomizeColorsClick = () => {
+     // Ensure chartConfig is based on currently *selected* models for the dialog
+     const currentResultIds = results.map(r => r.connectionId);
+     const connectionsForDialog = connections.filter(c => currentResultIds.includes(c.id));
+
+     if (connectionsForDialog.length > 0) {
+       // Ensure config exists for these models
+       setChartConfig(prevConfig => {
+           const updated = generateDefaultChartConfig(connectionsForDialog, prevConfig);
+           if (JSON.stringify(updated) !== JSON.stringify(prevConfig)) {
+               saveChartConfig(updated); // Save if defaults were added
+           }
+           return updated;
+       });
+       setIsCustomizeColorsOpen(true);
+     } else {
+         toast({
+             title: "No Models to Customize",
+             description: "Run a comparison first or select models.",
+             variant: "default",
+         });
+     }
+   };
   const handleTogetherApiClick = () => {
      setIsTogetherApiTesterOpen(true);
   }
@@ -366,9 +445,8 @@ export default function ComparePage() {
     const lastLog = comparisonLogs.length > 0 ? comparisonLogs[0] : null;
     if (lastLog) {
         const lastConnectionIds = lastLog.results.map(r => r.modelId);
-        // Find currently available connections that were used in the last run
         const availableLastConnectionIds = lastConnectionIds.filter(id =>
-            connections.some(c => c.id === id)
+            connections.some(c => c.id === id && c.isActive) // Ensure connection is still active
         );
 
         if (availableLastConnectionIds.length > 0) {
@@ -389,7 +467,7 @@ export default function ComparePage() {
 const handleDeleteLog = (logId: string) => {
     setComparisonLogs(prevLogs => {
         const updatedLogs = prevLogs.filter(log => log.id !== logId);
-        saveLogs(updatedLogs); // Save the updated logs to localStorage
+        saveLogs(updatedLogs);
         return updatedLogs;
     });
     toast({ title: "Log Entry Deleted", description: `Log ID ${logId.replace('comparison-','')} has been deleted.` });
@@ -408,8 +486,11 @@ const handleDeleteLog = (logId: string) => {
                    <Logs className="h-4 w-4 mr-1" /> Logs
                </Button>
                <Separator orientation="vertical" className="h-6" />
-               <Button variant="ghost" size="sm" onClick={handleVerifyClick} aria-label="Verify">
+               <Button variant="ghost" size="sm" onClick={handleVerifyClick} aria-label="Verify Metrics">
                    <CheckSquare className="h-4 w-4 mr-1" /> Verify
+               </Button>
+                <Button variant="ghost" size="sm" onClick={handleCustomizeColorsClick} aria-label="Customize Colors">
+                   <Palette className="h-4 w-4 mr-1" /> Colors {/* Changed Icon */}
                </Button>
                <Separator orientation="vertical" className="h-6" />
                <Button variant="ghost" size="sm" onClick={handleTogetherApiClick}>
@@ -421,7 +502,7 @@ const handleDeleteLog = (logId: string) => {
                    API Test
                </Button>
                <Separator orientation="vertical" className="h-6" />
-               <Button variant="ghost" size="sm" onClick={handleRefreshClick}>
+               <Button variant="ghost" size="sm" onClick={handleRefreshClick} aria-label="Refresh Comparison">
                    <RefreshCw className="h-4 w-4 mr-1" />
                    Refresh
                </Button>
@@ -430,7 +511,7 @@ const handleDeleteLog = (logId: string) => {
 
         {/* Setup Section (Prompt and Model Selection) */}
         <ComparisonSetup
-          connections={connections} // Pass active connections
+          connections={connections}
           onSubmit={handleCompareSubmit}
           isLoading={isLoading}
         />
@@ -449,13 +530,14 @@ const handleDeleteLog = (logId: string) => {
 
 
          {/* Separator */}
-         {showResults && <Separator className="my-8 md:my-12" />}
+         {showResults && results.length > 0 && <Separator className="my-8 md:my-12" />}
 
         {/* Performance Metrics Section - Render Chart */}
         {showResults && (
             <PerformanceChart
                 results={results}
                 isLoading={isLoading}
+                chartConfig={chartConfig} // Pass chartConfig
              />
         )}
 
@@ -482,11 +564,11 @@ const handleDeleteLog = (logId: string) => {
            logs={comparisonLogs}
            onClearLogs={() => {
                setComparisonLogs([]);
-               saveLogs([]); // Clear from storage as well
+               saveLogs([]);
                toast({ title: "Logs Cleared" });
             }}
-           onRefresh={handleRefreshClick} // Pass refresh handler
-           onDeleteLog={handleDeleteLog} // Pass the single log delete handler
+           onRefresh={handleRefreshClick}
+           onDeleteLog={handleDeleteLog}
        />
 
         {/* Metrics Verification Modal */}
@@ -495,6 +577,15 @@ const handleDeleteLog = (logId: string) => {
            onClose={() => setIsVerificationOpen(false)}
            logEntry={comparisonLogs.length > 0 ? comparisonLogs[0] : null}
            onRefresh={handleRefreshClick}
+       />
+
+        {/* Customize Colors Modal */}
+       <CustomizeColorsDialog
+           isOpen={isCustomizeColorsOpen}
+           onClose={() => setIsCustomizeColorsOpen(false)}
+           connections={connections.filter(c => results.some(r => r.connectionId === c.id))} // Only pass connections that have results
+           initialConfig={chartConfig}
+           onSave={handleUpdateChartConfig}
        />
 
         {/* Together API Tester Modal */}
@@ -507,8 +598,6 @@ const handleDeleteLog = (logId: string) => {
          <ApiRequestTesterDialog
              isOpen={isApiTesterOpen}
              onClose={() => setIsApiTesterOpen(false)}
-             // defaultBaseUrl={...} // Potentially pass defaults based on context
-             // defaultModelName={...}
          />
     </>
   );
