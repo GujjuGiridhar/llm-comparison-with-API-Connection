@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'; // Import usePathname
 import { Scale, Home, Settings, GitCompareArrows } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { ThemeToggleButton } from "@/components/theme-toggle-button"; // Import the theme toggle button
 
 export function Header() {
   const pathname = usePathname(); // Get current pathname using the hook
@@ -28,7 +29,7 @@ export function Header() {
         <nav className="flex flex-1 items-center space-x-6 text-sm font-medium">
           {/* Links will be added here later if needed */}
         </nav>
-        <div className="flex items-center justify-end space-x-4">
+        <div className="flex items-center justify-end space-x-2 md:space-x-4"> {/* Adjusted spacing */}
            <Link
              href="/"
              className={cn(
@@ -37,7 +38,7 @@ export function Header() {
              )}
            >
              <Home className="mr-1 h-4 w-4" />
-             Home
+             <span className="hidden sm:inline">Home</span> {/* Hide text on small screens */}
            </Link>
            <Link
              href="/compare"
@@ -47,7 +48,7 @@ export function Header() {
              )}
            >
              <GitCompareArrows className="mr-1 h-4 w-4" /> {/* Changed Icon */}
-             Compare
+              <span className="hidden sm:inline">Compare</span> {/* Hide text on small screens */}
            </Link>
            <Link
              href="/settings"
@@ -57,8 +58,9 @@ export function Header() {
              )}
            >
              <Settings className="mr-1 h-4 w-4" />
-             Settings
+              <span className="hidden sm:inline">Settings</span> {/* Hide text on small screens */}
            </Link>
+            <ThemeToggleButton /> {/* Add the theme toggle button */}
         </div>
       </div>
     </header>

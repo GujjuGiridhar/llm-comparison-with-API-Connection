@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Header } from '@/components/layout/header'; // Import the Header
+import { ThemeProvider } from "@/components/theme-provider"; // Import ThemeProvider
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,14 +26,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Apply dark class
-    <html lang="en" className="dark">
+    // Remove hardcoded dark class, ThemeProvider will handle it
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <Header /> {/* Add the Header */}
-        <div className="flex-grow">
-          {children}
-        </div>
-        <Toaster />
+         <ThemeProvider
+            attribute="class"
+            defaultTheme="dark" // Keep dark as default
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Header /> {/* Add the Header */}
+            <div className="flex-grow">
+              {children}
+            </div>
+            <Toaster />
+         </ThemeProvider>
       </body>
     </html>
   );
