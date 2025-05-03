@@ -21,7 +21,8 @@ export default function Home() {
               as="a" // Render as an anchor tag for Link compatibility
               role="button" // Add role for semantics
               size="lg"
-              className="bg-primary text-primary-foreground btn" // Added btn class for global hover effect
+              className="btn" // Apply base btn class for global hover/focus
+              variant="primary" // Apply primary variant for styling
             >
               <Settings className="mr-2 h-5 w-5" />
               Configure Models
@@ -34,7 +35,7 @@ export default function Home() {
               role="button" // Add role for semantics
               size="lg"
               variant="secondary"
-              className="bg-secondary text-secondary-foreground btn" // Added btn class for global hover effect
+              className="btn" // Apply base btn class for global hover/focus
             >
               Start Comparing <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -44,10 +45,12 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-        <Card className="text-left bg-card/70 border-border"> {/* Applied consistent card background */}
-          <CardHeader className="bg-card/90 rounded-t-lg"> {/* Applied consistent header background */}
-            <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
-            <CardTitle>Multiple Providers</CardTitle>
+        <Card className="text-left bg-card/70 border-border card-glow"> {/* Applied consistent card background */}
+          <CardHeader className="rounded-t-lg relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-secondary/10 before:opacity-70 before:blur-lg"> {/* Added glowing background */}
+             <div className="relative z-10"> {/* Content needs to be above the glow */}
+               <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
+               <CardTitle>Multiple Providers</CardTitle>
+             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
@@ -55,10 +58,12 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card/70 border-border"> {/* Applied consistent card background */}
-          <CardHeader className="bg-card/90 rounded-t-lg"> {/* Applied consistent header background */}
-            <BarChart className="h-8 w-8 mb-2 text-primary" />
-            <CardTitle>Real-time Analysis</CardTitle>
+        <Card className="text-left bg-card/70 border-border card-glow"> {/* Applied consistent card background */}
+          <CardHeader className="rounded-t-lg relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-secondary/10 before:opacity-70 before:blur-lg"> {/* Added glowing background */}
+             <div className="relative z-10"> {/* Content needs to be above the glow */}
+               <BarChart className="h-8 w-8 mb-2 text-primary" />
+               <CardTitle>Real-time Analysis</CardTitle>
+             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
@@ -66,10 +71,12 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card/70 border-border"> {/* Applied consistent card background */}
-          <CardHeader className="bg-card/90 rounded-t-lg"> {/* Applied consistent header background */}
-            <Puzzle className="h-8 w-8 mb-2 text-primary" />
-            <CardTitle>Easy Configuration</CardTitle>
+        <Card className="text-left bg-card/70 border-border card-glow"> {/* Applied consistent card background */}
+          <CardHeader className="rounded-t-lg relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-secondary/10 before:opacity-70 before:blur-lg"> {/* Added glowing background */}
+             <div className="relative z-10"> {/* Content needs to be above the glow */}
+               <Puzzle className="h-8 w-8 mb-2 text-primary" />
+               <CardTitle>Easy Configuration</CardTitle>
+             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
