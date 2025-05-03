@@ -202,9 +202,9 @@ export default function ComparePage() {
           await new Promise(resolve => setTimeout(resolve, delay));
 
           // Simulate an error for one of the models sometimes
-          if (Math.random() < 0.1) { // 10% chance of error
-              throw new Error("Simulated API Error");
-          }
+          // if (Math.random() < 0.1) { // 10% chance of error
+          //     throw new Error("Simulated API Error");
+          // }
 
           // Generate mock performance data
           const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
