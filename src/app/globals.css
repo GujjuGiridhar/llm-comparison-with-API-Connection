@@ -151,4 +151,15 @@ body {
         box-shadow: 0 10px 15px -3px hsl(var(--ring) / 0.1), /* Existing larger shadow */
                     0 0 25px 6px hsl(var(--ring) / 0.25); /* Slightly stronger glow effect */
     }
+
+    /* Style for the glowing underline on active header links */
+    .header-link-active::after {
+        content: '';
+        @apply absolute bottom-[-2px] left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)] transition-all duration-300 ease-in-out;
+    }
+
+     .header-link:hover::after {
+        content: '';
+        @apply absolute bottom-[-2px] left-0 w-full h-[1px] bg-muted-foreground/50 transition-all duration-300 ease-in-out;
+    }
 }

@@ -23,21 +23,21 @@ export function Header() {
         <div className="mr-6 flex items-center"> {/* Increased margin */}
           <Link href="/" className="flex items-center space-x-2 group">
             <Scale className="h-6 w-6 text-primary group-hover:animate-pulse" /> {/* Added hover effect */}
-            <span className="font-bold text-foreground group-hover:text-primary transition-colors duration-200">
+            <span className="font-bold text-foreground group-hover:text-primary transition-colors duration-200 text-lg"> {/* Increased font size */}
               LLM Comparsion
             </span>
           </Link>
         </div>
 
         {/* Navigation Links - Right Aligned */}
-        <div className="flex flex-1 items-center justify-end space-x-2 md:space-x-4"> {/* Adjusted spacing */}
+        <div className="flex flex-1 items-center justify-end space-x-4 md:space-x-6"> {/* Adjusted spacing */}
            <Link
              href="/"
              className={cn(
-               'flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground', // Consistent padding/rounding, added hover background
+               'relative flex items-center px-3 py-1.5 text-sm font-medium transition-colors duration-150 header-link', // Consistent padding, added relative and base link class
                isActive('/')
-                 ? 'bg-accent text-accent-foreground font-semibold' // Active state: solid background, foreground text, bold
-                 : 'text-muted-foreground' // Inactive state: muted color
+                 ? 'text-primary font-semibold header-link-active' // Active state: primary text, bold, apply active class for underline/glow
+                 : 'text-muted-foreground hover:text-foreground' // Inactive state: muted color, hover to foreground
              )}
            >
              <Home className="mr-1.5 h-4 w-4" /> {/* Adjusted icon margin */}
@@ -46,10 +46,10 @@ export function Header() {
            <Link
              href="/compare"
              className={cn(
-                'flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground',
+                'relative flex items-center px-3 py-1.5 text-sm font-medium transition-colors duration-150 header-link',
                 isActive('/compare')
-                  ? 'bg-accent text-accent-foreground font-semibold' // Active state: solid background
-                  : 'text-muted-foreground'
+                  ? 'text-primary font-semibold header-link-active' // Active state
+                  : 'text-muted-foreground hover:text-foreground' // Inactive state
              )}
            >
              <GitCompareArrows className="mr-1.5 h-4 w-4" />
@@ -58,10 +58,10 @@ export function Header() {
            <Link
              href="/settings"
              className={cn(
-                'flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground',
+                'relative flex items-center px-3 py-1.5 text-sm font-medium transition-colors duration-150 header-link',
                 isActive('/settings')
-                  ? 'bg-accent text-accent-foreground font-semibold' // Active state: solid background
-                  : 'text-muted-foreground'
+                  ? 'text-primary font-semibold header-link-active' // Active state
+                  : 'text-muted-foreground hover:text-foreground' // Inactive state
              )}
            >
              <Settings className="mr-1.5 h-4 w-4" />
