@@ -101,8 +101,7 @@ export function LogViewer({
       });
   }, [logs, searchTerm, filterType, filterModel, sortOrder]); // Added filterModel dependency
 
-  // Select the first log by default if none is selected or the selected one is filtered out
-   // Select the first log by default if none is selected or the selected one is filtered out/deleted
+  // Select the first log by default if none is selected or the selected one is filtered out/deleted
   React.useEffect(() => {
       if (filteredAndSortedLogs.length > 0) {
           const currentSelectedLogExists = filteredAndSortedLogs.some(log => log.id === selectedLogId);
@@ -251,13 +250,16 @@ export function LogViewer({
                     Showing {filteredAndSortedLogs.length} of {logs.length} logs
                  </div>
                  {filteredAndSortedLogs.map((log) => (
-                    <button
+                    <div // Changed from button to div
                         key={log.id}
                         onClick={() => setSelectedLogId(log.id)}
                         className={cn(
-                          "w-full text-left p-2 rounded-md text-sm hover:bg-muted transition-colors relative group", // Added relative and group
+                          "w-full text-left p-2 rounded-md text-sm hover:bg-muted transition-colors relative group cursor-pointer", // Added cursor-pointer
                           selectedLogId === log.id ? "bg-muted" : ""
                         )}
+                        role="button" // Added role for accessibility
+                        tabIndex={0} // Make it focusable
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setSelectedLogId(log.id)} // Allow selection with Enter/Space
                       >
                         {/* Delete Button */}
                         <Button
@@ -285,7 +287,7 @@ export function LogViewer({
                         <p className="text-xs text-muted-foreground truncate mt-1" title={log.prompt}>
                             Prompt: {log.prompt}
                         </p>
-                    </button>
+                    </div> // Changed from button to div
                  ))}
                    {filteredAndSortedLogs.length === 0 && (
                        <p className="text-sm text-muted-foreground text-center p-4">No logs match your criteria.</p>
