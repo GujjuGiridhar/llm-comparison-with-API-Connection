@@ -1,14 +1,18 @@
+
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Scale, Home, Settings, GitCompareArrows } from 'lucide-react'; // Added GitCompareArrows
+import { usePathname } from 'next/navigation'; // Import usePathname
+import { Scale, Home, Settings, GitCompareArrows } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
 export function Header() {
-  // Basic active link styling (replace with a more robust solution if needed)
-  const isActive = (pathname: string) => typeof window !== 'undefined' && window.location.pathname === pathname;
+  const pathname = usePathname(); // Get current pathname using the hook
+
+  // Check if the link's path matches the current pathname
+  const isActive = (path: string) => pathname === path;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
