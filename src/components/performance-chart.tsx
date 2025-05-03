@@ -62,6 +62,7 @@ const processResultsForChart = (results: PerformanceResult[], selectedMetric: Me
       return completedResults.map(res => ({
           name: res.connectionName,
           [res.connectionId]: res[selectedMetric], // Each model gets its own data key for Line/Area
+          connectionId: res.connectionId, // Add connectionId here
       }));
       // A better structure for Line/Area might be:
       // [{ time: 'run1', modelA: value, modelB: value }, { time: 'run2', ... }]
@@ -71,7 +72,8 @@ const processResultsForChart = (results: PerformanceResult[], selectedMetric: Me
       return completedResults.map(res => ({
           name: res.connectionName,
           value: res[selectedMetric],
-          fill: `var(--color-${res.connectionId})` // Use CSS variable for fill color
+          fill: `var(--color-${res.connectionId})`, // Use CSS variable for fill color
+          connectionId: res.connectionId, // Add connectionId here
       }));
   } else { // Default to 'bar'
       return completedResults.map(res => ({
@@ -84,7 +86,7 @@ const processResultsForChart = (results: PerformanceResult[], selectedMetric: Me
 };
 
 
-export function PerformanceChart({ results, isLoading, chartConfig }: PerformanceChartProps) {
+export function PerformanceChart({ results, isLoading, chartConfig: passedChartConfig }: PerformanceChartProps) {
   const { theme } = useTheme(); // Get current theme
   const [selectedMetric, setSelectedMetric] = React.useState<MetricKey>("tokensPerSecond");
   const [chartType, setChartType] = React.useState<ChartType>('bar'); // Default chart type
@@ -100,21 +102,52 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
 
   const selectedMetricInfo = metricOptions.find(m => m.value === selectedMetric) as MetricInfo;
 
+
+  // Memoize chartConfig to avoid unnecessary recalculations
+   const chartConfig = React.useMemo(() => {
+       const config: ChartConfig = { ...passedChartConfig }; // Start with passed config
+       // For line/area charts, we might need a single entry for the metric itself if not plotting per model
+       if ((chartType === 'line' || chartType === 'area') && !config[selectedMetric]) {
+           // Ensure config is not undefined before accessing label
+           const label = selectedMetricInfo?.label || selectedMetric;
+           // Simple color determination logic
+           const metricColor = 'hsl(var(--foreground))'; // Default line color
+           config[selectedMetric] = {
+               label: label,
+               color: metricColor, // Or derive from a theme variable if preferred
+           }
+       }
+       return config;
+   }, [passedChartConfig, chartType, selectedMetric, selectedMetricInfo]); // Depend on passed config and chart settings
+
+
   // Tooltip Formatter
   const formatTooltipValue = (value: number | string | undefined, name: string | undefined, props: any) => {
     if (value === undefined || name === undefined) return '';
 
-    const metricInfo = metricOptions.find(m => m.value === name);
-    const unit = metricInfo?.unit || '';
+    let metricInfo = metricOptions.find(m => m.value === selectedMetric); // Always use the selected metric info
+    let unit = metricInfo?.unit || '';
+    let connectionId = props.payload?.connectionId || name; // Try to find connectionId
+
+    // Label depends on chart type and context
+    let label = '';
+    if (chartType === 'line' || chartType === 'area') {
+        // 'name' passed to formatter is the connectionId (dataKey)
+        label = chartConfig[name]?.label || name;
+    } else { // bar, pie
+        // 'name' passed to formatter is 'value' or the metric key itself.
+        // We need the actual model name from the payload.
+        label = chartConfig[props.payload?.connectionId]?.label || props.payload?.name || connectionId;
+    }
+
 
     const formattedValue = typeof value === 'number'
-      ? value.toFixed(name === 'processingTime' ? 2 : (name === 'tokensPerSecond' ? 1 : 0))
+      ? value.toFixed(selectedMetric === 'processingTime' ? 2 : (selectedMetric === 'tokensPerSecond' ? 1 : 0))
       : value;
 
     // Determine color for indicator
     let color = 'hsl(var(--foreground))'; // Default color
-    const connectionId = props.payload?.connectionId || props.payload?.payload?.connectionId || name; // Try to find connectionId
-
+    // Get color based on connectionId, which should be reliable across chart types now
     if (connectionId && chartConfig[connectionId]) {
         color = chartConfig[connectionId].color || color;
     }
@@ -123,7 +156,7 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
     return (
        <div className="flex items-center gap-2">
           <span style={{ background: color }} className="w-2.5 h-2.5 rounded-full" />
-          <span className="text-muted-foreground">{chartConfig[connectionId]?.label || name}:</span>
+          <span className="text-muted-foreground">{label}:</span>
           <span className="font-mono font-medium tabular-nums text-foreground">{formattedValue}{unit}</span>
        </div>
     );
@@ -131,13 +164,15 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
 
    // Tooltip Label Formatter (Shows the model name for bar/pie, or metric name for line/area)
    const formatTooltipLabel = (label: string | number, payload: any[] | undefined) => {
+     if (!payload || payload.length === 0) return label;
+
      if (chartType === 'bar' || chartType === 'pie') {
-        return label; // Label is the connectionName
+        // Label is the connectionName from the data object
+        return payload[0]?.payload?.name || label;
      } else if (chartType === 'line' || chartType === 'area') {
-        // For line/area, the label might be a timestamp or run index if we had multiple runs.
-        // In the current single-run adaptation, 'label' might be the model name.
-        // Let's return the selected metric's label.
-        return selectedMetricInfo.label;
+        // In the current single-run adaptation, 'label' is the model name on X-axis.
+        // Return the model name for clarity.
+        return label;
      }
      return label;
    };
@@ -163,16 +198,16 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                            label={{ value: selectedMetricInfo.label + (selectedMetricInfo.unit ? ` (${selectedMetricInfo.unit.trim()})` : ''), angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: 12 }, dy: 60 }}
                        />
-                       <Tooltip
+                       <ChartTooltip
                            cursor={{ fill: "hsl(var(--muted)/0.3)" }}
                            content={
                               <ChartTooltipContent
-                                   formatter={(value, name, props) => formatTooltipValue(value, props.payload?.connectionId || name, props)} // Pass connectionId if available
-                                   labelFormatter={formatTooltipLabel}
+                                   formatter={formatTooltipValue} // Use the refined formatter
+                                   labelFormatter={formatTooltipLabel} // Use the refined label formatter
                                />
                            }
                        />
-                       <Legend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
+                       <ChartLegend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
                        {completedResults.map(res => (
                             <Line
                                 key={res.connectionId}
@@ -224,16 +259,16 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
                             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                             label={{ value: selectedMetricInfo.label + (selectedMetricInfo.unit ? ` (${selectedMetricInfo.unit.trim()})` : ''), angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: 12 }, dy: 60 }}
                         />
-                        <Tooltip
+                        <ChartTooltip
                             cursor={{ fill: "hsl(var(--muted)/0.3)" }}
                              content={
                               <ChartTooltipContent
-                                   formatter={(value, name, props) => formatTooltipValue(value, props.payload?.connectionId || name, props)} // Pass connectionId if available
-                                   labelFormatter={formatTooltipLabel}
+                                   formatter={formatTooltipValue} // Use the refined formatter
+                                   labelFormatter={formatTooltipLabel} // Use the refined label formatter
                                />
                            }
                         />
-                        <Legend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
+                        <ChartLegend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
                          {completedResults.map(res => (
                             <Area
                                 key={res.connectionId}
@@ -252,16 +287,16 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
                const pieLabelColor = theme === 'dark' ? '#ffffff' : '#000000'; // Dynamic label color
                return (
                    <PieChart>
-                       <Tooltip
+                       <ChartTooltip
                            cursor={{ fill: "hsl(var(--muted)/0.3)" }}
                            content={
                               <ChartTooltipContent
-                                   formatter={formatTooltipValue}
-                                   labelFormatter={formatTooltipLabel}
+                                   formatter={formatTooltipValue} // Use the refined formatter
+                                   labelFormatter={formatTooltipLabel} // Use the refined label formatter
                                />
                            }
                        />
-                       <Legend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
+                       <ChartLegend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
                        <Pie
                            data={chartData}
                            dataKey="value"
@@ -278,6 +313,9 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
                                const percentage = (percent * 100).toFixed(0);
+
+                               // Only render label if percentage is significant enough
+                               if (percent < 0.05) return null; // Hide labels for small slices
 
                                return (
                                    <text
@@ -322,17 +360,22 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
                             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                             label={{ value: selectedMetricInfo.label + (selectedMetricInfo.unit ? ` (${selectedMetricInfo.unit.trim()})` : ''), angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: 12 }, dy: 60 }}
                         />
-                         <Tooltip
+                         <ChartTooltip
                             cursor={{ fill: "hsl(var(--muted)/0.3)" }}
                             content={
                                 <ChartTooltipContent
-                                    formatter={formatTooltipValue}
-                                    labelFormatter={formatTooltipLabel}
+                                    formatter={formatTooltipValue} // Use the refined formatter
+                                    labelFormatter={formatTooltipLabel} // Use the refined label formatter
                                 />
                             }
                           />
-                          <Legend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
-                         <Bar dataKey={selectedMetric} radius={4} />
+                          <ChartLegend content={<ChartLegendContent />} verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
+                         <Bar dataKey={selectedMetric} radius={4}>
+                            {/* Apply color per bar based on connectionId */}
+                           {chartData.map((entry, index) => (
+                             <Cell key={`cell-${index}`} fill={entry.fill} />
+                           ))}
+                         </Bar>
                     </BarChart>
                 );
        }
@@ -395,11 +438,7 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
 
               {/* Chart Actions */}
               <div className="flex items-center gap-1 ml-auto">
-                   {/* Removed Settings button, replaced with Customize Colors */}
-                   {/* <Button variant="ghost" size="sm" onClick={onCustomizeColors} disabled={isLoading || completedResults.length === 0}>
-                       <Palette className="h-4 w-4" />
-                       <span className="sr-only">Customize Colors</span>
-                   </Button> */}
+                   {/* Palette button is handled in the parent page now */}
                   {/* Refresh and Download remain placeholders for now */}
                   <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><RefreshCw className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><Download className="h-4 w-4" /></Button>
@@ -432,4 +471,3 @@ export function PerformanceChart({ results, isLoading, chartConfig }: Performanc
     </Card>
   );
 }
-```
