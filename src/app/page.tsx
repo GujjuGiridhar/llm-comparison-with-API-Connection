@@ -16,21 +16,25 @@ export default function Home() {
           response times, and token generation speed, and output quality to choose the right model for your needs.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Link href="/settings"> {/* Link to /settings */}
+          <Link href="/settings" passHref legacyBehavior>
             <Button
+              as="a" // Render as an anchor tag for Link compatibility
+              role="button" // Add role for semantics
               size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105 hover:shadow-lg"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105"
             >
               <Settings className="mr-2 h-5 w-5" />
               Configure Models
             </Button>
           </Link>
           {/* The "Start Comparing" button will likely link to the /compare page */}
-          <Link href="/compare">
+          <Link href="/compare" passHref legacyBehavior>
             <Button
+              as="a" // Render as an anchor tag
+              role="button" // Add role for semantics
               size="lg"
               variant="secondary"
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105 hover:shadow-lg"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105"
             >
               Start Comparing <ArrowRight className="ml-2 h-5 w-5" />
             </Button>

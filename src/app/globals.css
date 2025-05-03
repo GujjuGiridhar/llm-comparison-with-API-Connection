@@ -15,64 +15,64 @@ body {
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 175 75% 50%; /* Primary color - Vibrant Cyan/Teal */
+    --primary-foreground: 0 0% 98%; /* White text on primary */
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 175 70% 40%; /* Teal/Cyan */
-    --accent-foreground: 0 0% 98%; /* White */
+    --accent: 175 75% 50%; /* Use primary color as accent */
+    --accent-foreground: 0 0% 98%; /* White text on accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --chart-1: 210 40% 50%;
-    --chart-2: 180 100% 30%;
-    --chart-3: 220 9% 60%;
+    --ring: 175 80% 60%; /* Brighter cyan/teal for focus rings/glow */
+    --chart-1: 175 70% 50%;
+    --chart-2: 150 60% 45%;
+    --chart-3: 220 15% 50%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
     --sidebar-background: 240 4.8% 95.9%;
     --sidebar-foreground: 240 5.9% 10%;
-    --sidebar-primary: 175 70% 40%; /* Teal/Cyan */
+    --sidebar-primary: 175 75% 50%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 5.9% 90%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 240 5.9% 85%;
-    --sidebar-ring: 175 70% 40%; /* Teal/Cyan */
+    --sidebar-ring: 175 80% 60%;
   }
 
   .dark {
-    /* Dark Theme - Refined */
-    --background: 220 30% 6%; /* Slightly less saturated dark blue */
+    /* Dark Theme - Refined with Glow */
+    --background: 220 25% 5%; /* Darker Blue/Gray */
     --foreground: 0 0% 98%; /* White */
 
-    --card: 220 30% 10%; /* Slightly lighter dark blue for cards */
+    --card: 220 25% 9%; /* Slightly lighter dark blue for cards */
     --card-foreground: 0 0% 98%; /* White */
 
     --popover: 220 30% 7%; /* Darker popover background */
     --popover-foreground: 0 0% 98%;
 
-    --primary: 175 70% 45%; /* Cyan/Teal for primary actions */
+    --primary: 175 75% 50%; /* Vibrant Cyan/Teal */
     --primary-foreground: 0 0% 98%; /* White */
 
-    --secondary: 150 50% 40%; /* Slightly less vibrant green */
+    --secondary: 150 40% 35%; /* Muted Green */
     --secondary-foreground: 0 0% 98%; /* White */
 
     --muted: 220 25% 18%; /* Adjusted muted background */
     --muted-foreground: 220 15% 65%; /* Increased contrast muted text */
 
-    --accent: 175 70% 45%; /* Cyan/Teal */
+    --accent: 175 75% 50%; /* Cyan/Teal */
     --accent-foreground: 0 0% 98%; /* White */
 
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 220 25% 15%; /* Subtle border */
-    --input: 220 25% 15%; /* Input background matching border */
-    --ring: 175 70% 55%; /* Lighter Cyan/Teal for focus rings */
+    --input: 220 25% 14%; /* Input background slightly lighter than border */
+    --ring: 175 80% 60%; /* Brighter Cyan/Teal for focus rings/glow */
 
     /* Chart colors kept the same, assuming they work well */
     --chart-1: 175 70% 50%;
@@ -86,12 +86,12 @@ body {
     /* Sidebar colors adjusted slightly */
     --sidebar-background: 220 30% 8%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 175 70% 45%; /* Cyan/Teal */
+    --sidebar-primary: 175 75% 50%; /* Cyan/Teal */
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 220 25% 14%; /* Adjusted accent */
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 220 25% 15%;
-    --sidebar-ring: 175 70% 55%;
+    --sidebar-ring: 175 80% 60%;
   }
 }
 
@@ -105,10 +105,10 @@ body {
   }
 }
 
-/* Optional: Add subtle transitions and focus states for better UX */
+/* Add glow effect to buttons */
 @layer components {
    .btn {
-     @apply transition-colors duration-150 ease-in-out;
+     @apply transition-all duration-150 ease-in-out; /* Apply transition to all properties */
    }
    .input {
       @apply transition-colors duration-150 ease-in-out;
@@ -126,12 +126,23 @@ body {
     .btn-outline {
        @apply hover:bg-accent hover:text-accent-foreground;
    }
-    /* Subtle focus ring */
-    input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+    /* Glow effect on focus-visible and hover */
+    /* Use --ring color for the glow */
+    button:focus-visible,
+    a[role="button"]:focus-visible {
+       @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+       box-shadow: 0 0 15px 3px hsl(var(--ring) / 0.4); /* Glow effect */
+    }
+    button:hover,
+    a[role="button"]:hover {
+        box-shadow: 0 0 15px 3px hsl(var(--ring) / 0.3); /* Subtle glow on hover */
+    }
+    /* Ensure inputs also get focus ring */
+     input:focus-visible, textarea:focus-visible, select:focus-visible {
        @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
     }
     /* Card shadow refinement */
     .card {
-        @apply shadow-md hover:shadow-lg transition-shadow duration-200;
+        @apply shadow-md hover:shadow-xl transition-shadow duration-200;
     }
 }
