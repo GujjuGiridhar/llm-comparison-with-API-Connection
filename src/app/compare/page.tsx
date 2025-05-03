@@ -201,11 +201,6 @@ export default function ComparePage() {
           const delay = 500 + Math.random() * 2500; // 0.5s to 3s
           await new Promise(resolve => setTimeout(resolve, delay));
 
-          // Simulate an error for one of the models sometimes
-          // if (Math.random() < 0.1) { // 10% chance of error
-          //     throw new Error("Simulated API Error");
-          // }
-
           // Generate mock performance data
           const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
           const responseTime = Math.max(50, parseFloat((delay * (0.1 + Math.random() * 0.3)).toFixed(0))); // e.g., 10-40% of total delay, in ms
@@ -373,6 +368,16 @@ export default function ComparePage() {
     }
 };
 
+// Function to handle deleting a single log entry
+const handleDeleteLog = (logId: string) => {
+    setComparisonLogs(prevLogs => {
+        const updatedLogs = prevLogs.filter(log => log.id !== logId);
+        saveLogs(updatedLogs); // Save the updated logs to localStorage
+        return updatedLogs;
+    });
+    toast({ title: "Log Entry Deleted", description: `Log ID ${logId.replace('comparison-','')} has been deleted.` });
+};
+
 
   return (
     <>
@@ -466,6 +471,7 @@ export default function ComparePage() {
                toast({ title: "Logs Cleared" });
             }}
            onRefresh={handleRefreshClick} // Pass refresh handler
+           onDeleteLog={handleDeleteLog} // Pass the single log delete handler
        />
 
         {/* Metrics Verification Modal */}
