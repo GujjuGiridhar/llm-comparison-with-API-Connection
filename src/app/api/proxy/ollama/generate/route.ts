@@ -8,7 +8,7 @@ interface OllamaGenerateRequest {
     stream?: boolean;
     options?: {
         temperature?: number;
-        num_predict?: number;
+        num_predict?: number; // Corresponds to max_tokens in Ollama API
         // Add other Ollama options if needed
     };
     // Allow any other properties Ollama might accept
@@ -34,22 +34,26 @@ interface OllamaResponse {
 
 
 export async function POST(request: NextRequest) {
+  let ollamaUrl = ''; // Define ollamaUrl outside the try block for logging in catch
   try {
     const { baseUrl, requestBody }: ProxyRequest = await request.json();
 
     // Validate baseUrl
     if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('http')) {
-        return NextResponse.json({ error: 'Invalid or missing baseUrl' }, { status: 400 });
+        console.error("Invalid baseUrl received:", baseUrl);
+        return NextResponse.json({ error: 'Invalid or missing baseUrl. Must start with http:// or https://' }, { status: 400 });
     }
      // Validate requestBody
      if (!requestBody || typeof requestBody !== 'object' || !requestBody.model || !requestBody.prompt) {
-         return NextResponse.json({ error: 'Invalid or missing requestBody with model and prompt' }, { status: 400 });
+        console.error("Invalid requestBody received:", requestBody);
+         return NextResponse.json({ error: 'Invalid or missing requestBody. It must contain at least "model" and "prompt".' }, { status: 400 });
      }
 
-    const ollamaUrl = `${baseUrl}/api/generate`;
+    ollamaUrl = `${baseUrl}/api/generate`; // Construct the full URL
 
-    console.log(`Proxying request to: ${ollamaUrl}`);
-    console.log(`Request body: ${JSON.stringify(requestBody)}`);
+    // Log the target URL and body being sent
+    console.log(`Proxying request TO: ${ollamaUrl}`);
+    console.log(`Request body FOR Ollama: ${JSON.stringify(requestBody)}`);
 
     const ollamaResponse = await fetch(ollamaUrl, {
       method: 'POST',
@@ -61,46 +65,56 @@ export async function POST(request: NextRequest) {
        signal: AbortSignal.timeout(60000),
     });
 
-    // Check if the response status indicates an error
+    // Check if the response status indicates an error (e.g., 4xx, 5xx)
     if (!ollamaResponse.ok) {
-       let errorBody: OllamaResponse = {};
+       let errorBody: OllamaResponse = { error: `Ollama API responded with status ${ollamaResponse.status}: ${ollamaResponse.statusText}` };
        try {
-           errorBody = await ollamaResponse.json();
+           // Try to parse the error response body from Ollama for more details
+           const parsedError = await ollamaResponse.json();
+           if (parsedError && parsedError.error) {
+               errorBody.error = `Ollama Error (${ollamaResponse.status}): ${parsedError.error}`;
+           }
+           console.error(`Ollama API error response body:`, parsedError);
        } catch (parseError) {
-           console.error("Failed to parse error response body:", parseError);
-           // Use status text if body parsing fails
-           errorBody = { error: `Ollama API request failed with status ${ollamaResponse.status}: ${ollamaResponse.statusText}` };
+           // If parsing fails, use the status text
+           console.error("Failed to parse error response body from Ollama:", parseError);
        }
-       console.error(`Ollama API error (${ollamaResponse.status}):`, errorBody);
-       // Return the error from Ollama, include status code
-       return NextResponse.json({ error: errorBody.error || `Ollama API request failed with status ${ollamaResponse.status}` }, { status: ollamaResponse.status });
+       console.error(`Ollama API request failed. Status: ${ollamaResponse.status}, URL: ${ollamaUrl}`);
+       // Return the specific error from Ollama or the generic status error
+       return NextResponse.json({ error: errorBody.error }, { status: ollamaResponse.status });
     }
 
     // If response is OK, parse the JSON body
     const data: OllamaResponse = await ollamaResponse.json();
-    console.log("Ollama API response:", data);
+    console.log("Successful Ollama API response received:", data);
 
     // Return the successful response from Ollama
     return NextResponse.json(data, { status: 200 });
 
   } catch (error: any) {
-    console.error("Proxy error:", error);
+    // Log the full error for server-side debugging
+    console.error(`Error in Ollama proxy route (Target URL: ${ollamaUrl || 'N/A - Check baseUrl input'}):`, error);
 
-    // Handle fetch errors (e.g., network issues, timeout)
+    // Handle different types of errors more specifically
     let errorMessage = 'Failed to proxy request to Ollama.';
-    let statusCode = 500;
+    let statusCode = 500; // Internal Server Error (default)
 
      if (error.name === 'AbortError') {
-        errorMessage = 'Request to Ollama timed out.';
+        errorMessage = `Request to Ollama timed out after 60 seconds. URL: ${ollamaUrl}`;
         statusCode = 504; // Gateway Timeout
      } else if (error instanceof TypeError && error.message.includes('fetch failed')) {
-         // This often indicates a network issue (e.g., server not running, DNS problem)
-         errorMessage = `Network error connecting to Ollama: ${error.message}. Ensure the Ollama server is running and accessible.`;
-         statusCode = 502; // Bad Gateway
+         // This is the crucial network error. Provide actionable advice.
+         errorMessage = `Network error: Could not connect to the Ollama server at ${ollamaUrl}. ` +
+                        `Please ensure the Ollama server is running, the Base URL is correct, and the server is accessible ` +
+                        `from the environment where this Next.js application is running (e.g., check firewalls, Docker networks). ` +
+                        `Original error: ${error.message}`;
+         statusCode = 502; // Bad Gateway - Appropriate for proxy connection failure
      } else if (error.message) {
-         errorMessage = error.message;
+        // Catch other generic errors
+         errorMessage = `An unexpected error occurred: ${error.message}`;
      }
 
+    // Return a structured error response
     return NextResponse.json({ error: errorMessage }, { status: statusCode });
   }
 }

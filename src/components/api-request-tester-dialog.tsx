@@ -14,8 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Send, Download } from "lucide-react";
+import { Copy, Send, Download, AlertCircle } from "lucide-react"; // Added AlertCircle
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
 
 type ApiRequestTesterDialogProps = {
   isOpen: boolean;
@@ -74,6 +75,7 @@ export function ApiRequestTesterDialog({
   const [curlCommand, setCurlCommand] = React.useState("");
   const [apiResponse, setApiResponse] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [errorState, setErrorState] = React.useState<string | null>(null); // State to hold error message
 
   // Construct cURL command for Ollama API
   React.useEffect(() => {
@@ -98,7 +100,36 @@ export function ApiRequestTesterDialog({
 
   const handleTestApi = async () => {
     setLoading(true);
-    setApiResponse("Loading..."); // Indicate loading in response area
+    setApiResponse(""); // Clear previous response
+    setErrorState(null); // Clear previous error
+
+    // Basic client-side URL validation
+     if (!baseUrl || !baseUrl.startsWith('http')) {
+         const msg = 'Invalid Base URL. It must start with http:// or https://';
+         setErrorState(msg);
+         setApiResponse(''); // Clear response area on validation error
+         toast({ title: "Invalid Input", description: msg, variant: "destructive" });
+         setLoading(false);
+         return;
+     }
+     if (!modelName.trim()) {
+        const msg = 'Model Name cannot be empty.';
+        setErrorState(msg);
+        setApiResponse('');
+        toast({ title: "Invalid Input", description: msg, variant: "destructive" });
+        setLoading(false);
+        return;
+     }
+      if (!prompt.trim()) {
+        const msg = 'Prompt cannot be empty.';
+        setErrorState(msg);
+        setApiResponse('');
+        toast({ title: "Invalid Input", description: msg, variant: "destructive" });
+        setLoading(false);
+        return;
+     }
+
+
     try {
         const ollamaRequestBody: OllamaGenerateRequest = {
             model: modelName,
@@ -124,26 +155,46 @@ export function ApiRequestTesterDialog({
         body: JSON.stringify(proxyRequestData),
       });
 
-      const data = await response.json(); // Response from the proxy
-      setApiResponse(JSON.stringify(data, null, 2));
-
-      // Check the status from the proxy's response
-      if (!response.ok || data.error) {
-         const errorMessage = data.error || `Proxy request failed with status: ${response.status}`;
-        throw new Error(errorMessage);
+      let responseBody;
+      try {
+           responseBody = await response.json(); // Attempt to parse JSON regardless of status
+      } catch (parseError) {
+          // Handle cases where the response isn't valid JSON (e.g., 502 Bad Gateway HTML page)
+          responseBody = { error: `Failed to parse response from proxy. Status: ${response.status} ${response.statusText}` };
+           console.error("Failed to parse JSON response:", parseError);
+           // Attempt to read response as text for debugging
+           try {
+               const textResponse = await response.text();
+               console.error("Raw response text:", textResponse);
+               responseBody.error += `\nRaw Response: ${textResponse.substring(0, 200)}...`; // Show beginning of raw response
+           } catch {
+               // Ignore if reading as text also fails
+           }
       }
+
+       setApiResponse(JSON.stringify(responseBody, null, 2)); // Display parsed or error JSON
+
+      // Check for errors explicitly in the response body OR non-ok status
+      if (!response.ok || responseBody.error) {
+         const errorMessage = responseBody.error || `Request failed with status: ${response.status} ${response.statusText}`;
+         throw new Error(errorMessage);
+      }
+
 
       toast({
         title: "API Test Successful",
         description: "Response received. Check the Response tab.",
       });
+
     } catch (error: any) {
       console.error("API test error:", error);
-      // Display the error message received from the proxy or fetch failure
-      setApiResponse(`Error: ${error.message}`);
+      const errorMessage = error.message || 'An unknown error occurred during the API test.';
+      // Display the error message in the UI and toast
+      setErrorState(errorMessage);
+      setApiResponse(''); // Clear response area on error
       toast({
         title: "API Test Failed",
-        description: `Error: ${error.message}`,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -172,7 +223,7 @@ export function ApiRequestTesterDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-4 border-b border-border">
-          <DialogTitle className="text-lg">API Request Tester</DialogTitle>
+          <DialogTitle className="text-lg">API Request Tester (Ollama via Proxy)</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="request" className="flex-1 flex flex-col overflow-hidden">
@@ -185,7 +236,7 @@ export function ApiRequestTesterDialog({
             <TabsContent value="request" className="space-y-4 m-0"> {/* Removed default margin */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
-                        <Label htmlFor="base-url-tester">Base URL</Label>
+                        <Label htmlFor="base-url-tester">Base URL (Ollama Server)</Label>
                         <Input
                         id="base-url-tester"
                         value={baseUrl}
@@ -271,14 +322,27 @@ export function ApiRequestTesterDialog({
                </Button>
             </TabsContent>
 
-            <TabsContent value="response" className="m-0"> {/* Removed default margin */}
-              <Label>API Response</Label>
-              <Textarea
-                readOnly
-                value={apiResponse}
-                className="bg-muted/50 text-sm rounded-md resize-none min-h-[300px] font-mono" // Increased min-height
-                placeholder="API response will be displayed here after testing"
-              />
+            <TabsContent value="response" className="m-0 space-y-4"> {/* Removed default margin, added space-y */}
+               {/* Error Display */}
+              {errorState && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription className="whitespace-pre-wrap break-words">
+                        {errorState}
+                    </AlertDescription>
+                </Alert>
+              )}
+              {/* Response Area */}
+              <div>
+                <Label>API Response</Label>
+                <Textarea
+                  readOnly
+                  value={apiResponse}
+                  className="bg-muted/50 text-sm rounded-md resize-none min-h-[300px] font-mono" // Increased min-height
+                  placeholder="API response will be displayed here after testing"
+                />
+              </div>
             </TabsContent>
           </div>
 
