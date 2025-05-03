@@ -45,24 +45,24 @@ body {
   }
 
   .dark {
-    /* Dark Theme from Image */
-    --background: 220 40% 5%; /* Very Dark Blue */
+    /* Dark Theme - Refined */
+    --background: 220 30% 6%; /* Slightly less saturated dark blue */
     --foreground: 0 0% 98%; /* White */
 
-    --card: 220 40% 9%; /* Slightly Lighter Dark Blue */
+    --card: 220 30% 10%; /* Slightly lighter dark blue for cards */
     --card-foreground: 0 0% 98%; /* White */
 
-    --popover: 220 40% 5%;
+    --popover: 220 30% 7%; /* Darker popover background */
     --popover-foreground: 0 0% 98%;
 
     --primary: 175 70% 45%; /* Cyan/Teal for primary actions */
     --primary-foreground: 0 0% 98%; /* White */
 
-    --secondary: 150 60% 40%; /* Green for secondary actions */
+    --secondary: 150 50% 40%; /* Slightly less vibrant green */
     --secondary-foreground: 0 0% 98%; /* White */
 
-    --muted: 220 40% 15%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 220 25% 18%; /* Adjusted muted background */
+    --muted-foreground: 220 15% 65%; /* Increased contrast muted text */
 
     --accent: 175 70% 45%; /* Cyan/Teal */
     --accent-foreground: 0 0% 98%; /* White */
@@ -70,35 +70,68 @@ body {
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 40% 15%;
-    --input: 220 40% 15%;
+    --border: 220 25% 15%; /* Subtle border */
+    --input: 220 25% 15%; /* Input background matching border */
     --ring: 175 70% 55%; /* Lighter Cyan/Teal for focus rings */
 
+    /* Chart colors kept the same, assuming they work well */
     --chart-1: 175 70% 50%;
     --chart-2: 150 60% 45%;
     --chart-3: 220 15% 50%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
 
-    --radius: 0.5rem;
+    --radius: 0.5rem; /* Keep consistent radius */
 
-    --sidebar-background: 220 40% 7%;
+    /* Sidebar colors adjusted slightly */
+    --sidebar-background: 220 30% 8%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 175 70% 45%; /* Cyan/Teal */
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 220 40% 12%;
+    --sidebar-accent: 220 25% 14%; /* Adjusted accent */
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 220 40% 15%;
+    --sidebar-border: 220 25% 15%;
     --sidebar-ring: 175 70% 55%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border; /* Ensure borders use the theme variable */
   }
   body {
     @apply bg-background text-foreground;
-    @apply transition-colors duration-200;
+    @apply transition-colors duration-200; /* Smooth theme transitions */
   }
+}
+
+/* Optional: Add subtle transitions and focus states for better UX */
+@layer components {
+   .btn {
+     @apply transition-colors duration-150 ease-in-out;
+   }
+   .input {
+      @apply transition-colors duration-150 ease-in-out;
+   }
+   /* Example subtle hover for buttons */
+   .btn-primary {
+      @apply hover:bg-primary/90;
+   }
+   .btn-secondary {
+      @apply hover:bg-secondary/80;
+   }
+   .btn-ghost {
+       @apply hover:bg-accent hover:text-accent-foreground;
+   }
+    .btn-outline {
+       @apply hover:bg-accent hover:text-accent-foreground;
+   }
+    /* Subtle focus ring */
+    input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+       @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
+    }
+    /* Card shadow refinement */
+    .card {
+        @apply shadow-md hover:shadow-lg transition-shadow duration-200;
+    }
 }
