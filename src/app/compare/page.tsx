@@ -37,7 +37,7 @@ export default function ComparePage() {
   const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false); // State for Together API tester dialog
   const [isApiTesterOpen, setIsApiTesterOpen] = React.useState(false); // State for the new API Request Tester dialog
   const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
-  const [lastRunTimestamp, setLastRunTimestamp] = React.useState<Date | null>(null); // Track last run time
+  // const [lastRunTimestamp, setLastRunTimestamp] = React.useState<Date | null>(null); // No longer needed for chart
 
   // Load connections and logs from localStorage on mount
   React.useEffect(() => {
@@ -143,7 +143,7 @@ export default function ComparePage() {
  const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
     console.log("Comparison submitted:", data);
     const startTime = performance.now(); // Start timing the whole comparison
-    setLastRunTimestamp(new Date()); // Record start time
+    // setLastRunTimestamp(new Date()); // No longer needed for chart
     let currentResultsState: PerformanceResult[] = []; // Variable to hold the latest results state
 
     if (data.selectedConnectionIds.length === 0) {
@@ -200,6 +200,11 @@ export default function ComparePage() {
           // Simulate API call delay
           const delay = 500 + Math.random() * 2500; // 0.5s to 3s
           await new Promise(resolve => setTimeout(resolve, delay));
+
+          // Simulate an error for one of the models sometimes - REMOVED for predictability
+          // if (Math.random() < 0.1) { // 10% chance of error
+          //     throw new Error("Simulated API Error");
+          // }
 
           // Generate mock performance data
           const processingTime = parseFloat((delay / 1000).toFixed(2)); // In seconds
@@ -310,7 +315,7 @@ export default function ComparePage() {
            saveLogs(updatedLogs); // Save the updated logs
            return updatedLogs;
        });
-       setLastRunTimestamp(new Date()); // Record end time (or last update time)
+       // setLastRunTimestamp(new Date()); // No longer needed for chart
     }
   };
 
@@ -438,9 +443,9 @@ const handleDeleteLog = (logId: string) => {
         {/* Performance Metrics Section - Render Chart */}
         {showResults && (
             <PerformanceChart
-                results={results.filter(r => r.status === 'complete' || r.status === 'error')}
+                results={results} // Pass all results, chart will filter completed ones
                 isLoading={isLoading}
-                lastRunTimestamp={lastRunTimestamp} // Pass timestamp to chart
+                // lastRunTimestamp is removed
              />
         )}
 
