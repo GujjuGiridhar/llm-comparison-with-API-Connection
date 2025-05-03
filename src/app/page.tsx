@@ -44,7 +44,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-        <Card className="text-left bg-card border-border shadow-lg transition-shadow duration-200"> {/* Removed hover:shadow-xl */}
+        <Card className="text-left bg-card/80 border-border shadow-lg transition-shadow duration-200"> {/* Added bg-card/80 */}
           <CardHeader>
             <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Multiple Providers</CardTitle>
@@ -55,7 +55,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card border-border shadow-lg transition-shadow duration-200"> {/* Removed hover:shadow-xl */}
+        <Card className="text-left bg-card/80 border-border shadow-lg transition-shadow duration-200"> {/* Added bg-card/80 */}
           <CardHeader>
             <BarChart className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Real-time Analysis</CardTitle>
@@ -66,7 +66,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card border-border shadow-lg transition-shadow duration-200"> {/* Removed hover:shadow-xl */}
+        <Card className="text-left bg-card/80 border-border shadow-lg transition-shadow duration-200"> {/* Added bg-card/80 */}
           <CardHeader>
             <Puzzle className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Easy Configuration</CardTitle>
