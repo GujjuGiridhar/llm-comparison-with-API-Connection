@@ -46,7 +46,7 @@ type PerformanceChartProps = {
   results: PerformanceResult[];
   isLoading: boolean;
   chartConfig: ChartConfig; // Receive chartConfig as prop
-  // Removed internal color generation, rely on passed chartConfig
+  onCustomizeColors: () => void; // Add callback for customizing colors
 };
 
 // Function to process results for different chart types
@@ -86,7 +86,7 @@ const processResultsForChart = (results: PerformanceResult[], selectedMetric: Me
 };
 
 
-export function PerformanceChart({ results, isLoading, chartConfig: passedChartConfig }: PerformanceChartProps) {
+export function PerformanceChart({ results, isLoading, chartConfig: passedChartConfig, onCustomizeColors }: PerformanceChartProps) {
   const { theme } = useTheme(); // Get current theme
   const [selectedMetric, setSelectedMetric] = React.useState<MetricKey>("tokensPerSecond");
   const [chartType, setChartType] = React.useState<ChartType>('bar'); // Default chart type
@@ -438,10 +438,12 @@ export function PerformanceChart({ results, isLoading, chartConfig: passedChartC
 
               {/* Chart Actions */}
               <div className="flex items-center gap-1 ml-auto">
-                   {/* Palette button is handled in the parent page now */}
+                   <Button variant="ghost" size="sm" onClick={onCustomizeColors} disabled={isLoading || completedResults.length === 0} aria-label="Customize Colors">
+                      <Palette className="h-4 w-4" />
+                   </Button>
                   {/* Refresh and Download remain placeholders for now */}
-                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><RefreshCw className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0}><Download className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0} aria-label="Refresh Chart"><RefreshCw className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={isLoading || completedResults.length === 0} aria-label="Download Chart"><Download className="h-4 w-4" /></Button>
               </div>
            </div>
         </div>

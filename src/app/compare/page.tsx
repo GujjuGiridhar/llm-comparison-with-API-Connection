@@ -102,10 +102,16 @@ export default function ComparePage() {
         } else {
             console.error("ComparePage: Invalid data format in localStorage for connections. Expected array.");
             localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
+            loadedConnections = getMockConnections(); // Fallback to mocks if storage is corrupt
+            localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(loadedConnections));
+            useMocks = true;
         }
       } catch (error) {
         console.error("ComparePage: Failed to parse connections from localStorage", error);
         localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
+        loadedConnections = getMockConnections(); // Fallback to mocks if parsing fails
+        localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(loadedConnections));
+        useMocks = true;
       }
     } else {
         console.log("ComparePage: No connections found in localStorage. Adding mock data.");
@@ -127,7 +133,13 @@ export default function ComparePage() {
      if (savedLogs) {
          try {
              const parsedLogs = JSON.parse(savedLogs) as ComparisonLog[];
-             setComparisonLogs(parsedLogs);
+             // Basic validation: Check if it's an array
+             if (Array.isArray(parsedLogs)) {
+                 setComparisonLogs(parsedLogs);
+             } else {
+                 console.error("ComparePage: Invalid data format in localStorage for logs. Expected array.");
+                 localStorage.removeItem(LOGS_STORAGE_KEY);
+             }
          } catch (error) {
              console.error("Failed to parse logs from localStorage", error);
              localStorage.removeItem(LOGS_STORAGE_KEY);
@@ -142,6 +154,7 @@ export default function ComparePage() {
              initialChartConfig = JSON.parse(savedChartConfig) as ChartConfig;
              // Basic validation
              if (typeof initialChartConfig !== 'object' || initialChartConfig === null) {
+                 console.error("ComparePage: Invalid chart config format in localStorage.");
                  initialChartConfig = {};
                  localStorage.removeItem(CHART_CONFIG_STORAGE_KEY);
              }
@@ -155,8 +168,10 @@ export default function ComparePage() {
      // Ensure all current active connections have a default config if not loaded
      const updatedConfig = generateDefaultChartConfig(activeConnections, initialChartConfig);
      setChartConfig(updatedConfig);
-     // Save potentially updated config back to storage
-     localStorage.setItem(CHART_CONFIG_STORAGE_KEY, JSON.stringify(updatedConfig));
+     // Save potentially updated config back to storage only if it changed
+     if (JSON.stringify(updatedConfig) !== JSON.stringify(initialChartConfig)) {
+        localStorage.setItem(CHART_CONFIG_STORAGE_KEY, JSON.stringify(updatedConfig));
+     }
 
 
   }, []); // Empty dependency array
@@ -538,6 +553,7 @@ const handleDeleteLog = (logId: string) => {
                 results={results}
                 isLoading={isLoading}
                 chartConfig={chartConfig} // Pass chartConfig
+                onCustomizeColors={handleCustomizeColorsClick} // Pass handler
              />
         )}
 
