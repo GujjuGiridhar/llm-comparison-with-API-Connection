@@ -276,18 +276,22 @@ const ChartLegendContent = React.forwardRef<
           className
         )}
       >
-        {payload.map((item) => {
+        {payload.map((item, index) => { // Added index
            // Legend payload item 'id' often corresponds to the dataKey or name used in the Line component
            // Or sometimes 'value' holds the label if specified directly in Legend props
-           // We assume 'id' or 'value' holds the key corresponding to our chartConfig (connectionId)
-           const key = item.id || item.value || 'unknown';
-           const itemConfig = config[key as keyof typeof config];
-           const color = item.color || `var(--color-${key})`; // Use item color or CSS variable
+
+           // Prioritize dataKey for React key uniqueness
+           const reactKey = item.dataKey || item.id || item.value || `legend-item-${index}`; // Use index as final fallback
+
+           // For accessing config and color, try id or value which likely correspond to connectionId/Name
+           const configKey = item.id || item.value || 'unknown';
+           const itemConfig = config[configKey as keyof typeof config];
+           const color = item.color || `var(--color-${configKey})`; // Use item color or CSS variable
 
 
           return (
             <div
-              key={key} // Use the derived key
+              key={reactKey} // Use the potentially more unique reactKey
               className={cn(
                 "flex items-center gap-1.5 text-xs cursor-pointer [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground" // Reduce font size
               )}
