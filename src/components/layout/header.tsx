@@ -24,7 +24,7 @@ export function Header() {
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Scale className="h-6 w-6 text-primary" /> {/* Added color to icon */}
             <span className="font-bold sm:inline-block text-foreground">
-              LLM Comparo
+              LLM Comparsion {/* Updated text */}
             </span>
           </Link>
         </div>
