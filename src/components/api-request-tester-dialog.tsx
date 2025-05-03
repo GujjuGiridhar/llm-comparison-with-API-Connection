@@ -102,9 +102,10 @@ export function ApiRequestTesterDialog({
     setLoading(true);
     setApiResponse(""); // Clear previous response
     setErrorState(null); // Clear previous error
+    const currentBaseUrl = baseUrl; // Capture current baseUrl for error messages
 
     // Basic client-side URL validation
-     if (!baseUrl || !baseUrl.startsWith('http')) {
+     if (!currentBaseUrl || !currentBaseUrl.startsWith('http')) {
          const msg = 'Invalid Base URL. It must start with http:// or https://';
          setErrorState(msg);
          setApiResponse(''); // Clear response area on validation error
@@ -142,7 +143,7 @@ export function ApiRequestTesterDialog({
         };
 
         const proxyRequestData: ProxyRequest = {
-            baseUrl: baseUrl,
+            baseUrl: currentBaseUrl,
             requestBody: ollamaRequestBody,
         };
 
@@ -153,6 +154,8 @@ export function ApiRequestTesterDialog({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(proxyRequestData),
+         // Add a timeout (e.g., 60 seconds) - handled by proxy, but good to be aware
+         // signal: AbortSignal.timeout(60000), // Timeout is handled server-side in the proxy
       });
 
       let responseBody;
@@ -177,7 +180,16 @@ export function ApiRequestTesterDialog({
       // Check for errors explicitly in the response body OR non-ok status
       if (!response.ok || responseBody.error) {
          const errorMessage = responseBody.error || `Request failed with status: ${response.status} ${response.statusText}`;
-         throw new Error(errorMessage);
+         // Enhance the error message specifically for network errors from the proxy
+         if (errorMessage.includes("Could not connect to the Ollama server")) {
+             throw new Error(`Network error: Could not connect to the Ollama server at ${currentBaseUrl}. ` +
+                        `Please ensure the Ollama server is running, the Base URL is correct, and the server is accessible ` +
+                        `from the Next.js server environment (check firewalls, Docker networks, etc.).`);
+         } else if (errorMessage.includes("Request to Ollama timed out")) {
+             throw new Error(`Timeout error: The request to the Ollama server at ${currentBaseUrl} timed out. The server might be too slow or unresponsive.`);
+         } else {
+            throw new Error(errorMessage); // Throw other errors as received
+         }
       }
 
 
@@ -190,12 +202,13 @@ export function ApiRequestTesterDialog({
       console.error("API test error:", error);
       const errorMessage = error.message || 'An unknown error occurred during the API test.';
       // Display the error message in the UI and toast
-      setErrorState(errorMessage);
+      setErrorState(errorMessage); // Display the potentially enhanced error message
       setApiResponse(''); // Clear response area on error
       toast({
         title: "API Test Failed",
-        description: errorMessage,
+        description: errorMessage, // Show potentially enhanced error in toast
         variant: "destructive",
+        duration: 8000, // Give more time to read potentially long error
       });
     } finally {
       setLoading(false);
@@ -328,7 +341,8 @@ export function ApiRequestTesterDialog({
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Error</AlertTitle>
-                    <AlertDescription className="whitespace-pre-wrap break-words">
+                    {/* Use whitespace-pre-wrap to preserve formatting and wrap long lines */}
+                    <AlertDescription className="whitespace-pre-wrap break-words text-xs">
                         {errorState}
                     </AlertDescription>
                 </Alert>
