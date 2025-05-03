@@ -97,13 +97,12 @@ export function ComparisonSetup({ connections, onSubmit, isLoading }: Comparison
                                   <Checkbox
                                     checked={isChecked}
                                     onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...(field.value || []), connection.id])
-                                        : field.onChange(
-                                            (field.value || []).filter(
-                                              (value) => value !== connection.id
-                                            )
-                                          )
+                                      // Only allow selecting via checkbox, not deselecting
+                                      if (checked) {
+                                        field.onChange([...(field.value || []), connection.id]);
+                                      }
+                                      // Do nothing if trying to uncheck via checkbox
+                                      // Unchecking is handled by the X button
                                     }}
                                     disabled={isLoading}
                                   />
