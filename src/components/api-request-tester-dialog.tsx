@@ -154,8 +154,6 @@ export function ApiRequestTesterDialog({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(proxyRequestData),
-         // Add a timeout (e.g., 60 seconds) - handled by proxy, but good to be aware
-         // signal: AbortSignal.timeout(60000), // Timeout is handled server-side in the proxy
       });
 
       let responseBody;
@@ -182,11 +180,19 @@ export function ApiRequestTesterDialog({
          const errorMessage = responseBody.error || `Request failed with status: ${response.status} ${response.statusText}`;
          // Enhance the error message specifically for network errors from the proxy
          if (errorMessage.includes("Could not connect to the Ollama server")) {
-             throw new Error(`Network error: Could not connect to the Ollama server at ${currentBaseUrl}. ` +
-                        `Please ensure the Ollama server is running, the Base URL is correct, and the server is accessible ` +
-                        `from the Next.js server environment (check firewalls, Docker networks, etc.).`);
+             // Provide more specific guidance for localhost issues
+             let detailedErrorMessage = `Network Error: Could not connect to the Ollama server at ${currentBaseUrl}.\n\n` +
+                        `Troubleshooting Tips:\n` +
+                        `1. Ensure the Ollama server is running on the machine specified by the Base URL.\n` +
+                        `2. Verify the Base URL is correct.\n`;
+             if (currentBaseUrl.includes("localhost") || currentBaseUrl.includes("127.0.0.1")) {
+                 detailedErrorMessage += `3. If running this application in a container (like Docker or a cloud workstation), 'localhost' refers to the container itself. You might need to use the host machine's IP address or a specific container network address (e.g., 'host.docker.internal:11434' for Docker Desktop) instead of 'localhost'.\n`;
+             }
+             detailedErrorMessage += `4. Check if firewalls are blocking the connection between this application's server and the Ollama server.\n`;
+
+             throw new Error(detailedErrorMessage);
          } else if (errorMessage.includes("Request to Ollama timed out")) {
-             throw new Error(`Timeout error: The request to the Ollama server at ${currentBaseUrl} timed out. The server might be too slow or unresponsive.`);
+             throw new Error(`Timeout Error: The request to the Ollama server at ${currentBaseUrl} timed out. The server might be too slow, unresponsive, or the request complexity is too high for the timeout limit.`);
          } else {
             throw new Error(errorMessage); // Throw other errors as received
          }
@@ -206,9 +212,10 @@ export function ApiRequestTesterDialog({
       setApiResponse(''); // Clear response area on error
       toast({
         title: "API Test Failed",
-        description: errorMessage, // Show potentially enhanced error in toast
+        // Show potentially enhanced error in toast, limit length for readability
+        description: errorMessage.length > 150 ? errorMessage.substring(0, 150) + "..." : errorMessage,
         variant: "destructive",
-        duration: 8000, // Give more time to read potentially long error
+        duration: 10000, // Give more time to read potentially long error
       });
     } finally {
       setLoading(false);
