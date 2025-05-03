@@ -21,9 +21,9 @@ export function Header() {
       <div className="container flex h-14 max-w-screen-2xl items-center px-4 md:px-6"> {/* Added padding */}
         {/* Logo/Title Section */}
         <div className="mr-6 flex items-center"> {/* Increased margin */}
-          <Link href="/" className="flex items-center space-x-2 group">
+          <Link href="/" className="flex items-center space-x-2 group p-2 rounded-md transition-colors hover:bg-muted/50"> {/* Added padding and hover bg */}
             <Scale className="h-6 w-6 text-primary group-hover:animate-pulse" /> {/* Added hover effect */}
-            <span className="font-bold text-foreground group-hover:text-primary transition-colors duration-200 text-lg"> {/* Increased font size */}
+            <span className="font-bold text-foreground text-lg [text-shadow:0_1px_3px_hsl(var(--primary)/0.3)]"> {/* Applied styles: text-foreground, shadow */}
               LLM Comparsion
             </span>
           </Link>
