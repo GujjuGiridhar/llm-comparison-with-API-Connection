@@ -45,7 +45,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-        <Card className="text-left bg-card/70 border-border card-glow"> {/* Applied consistent card background */}
+        <Card className="text-left bg-card/70 border-border card-glow">
           <CardHeader className="rounded-t-lg relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-secondary/10 before:opacity-70 before:blur-lg"> {/* Added glowing background */}
              <div className="relative z-10"> {/* Content needs to be above the glow */}
                <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
@@ -58,7 +58,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card/70 border-border card-glow"> {/* Applied consistent card background */}
+        <Card className="text-left bg-card/70 border-border card-glow">
           <CardHeader className="rounded-t-lg relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-secondary/10 before:opacity-70 before:blur-lg"> {/* Added glowing background */}
              <div className="relative z-10"> {/* Content needs to be above the glow */}
                <BarChart className="h-8 w-8 mb-2 text-primary" />
@@ -71,7 +71,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card/70 border-border card-glow"> {/* Applied consistent card background */}
+        <Card className="text-left bg-card/70 border-border card-glow">
           <CardHeader className="rounded-t-lg relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-secondary/10 before:opacity-70 before:blur-lg"> {/* Added glowing background */}
              <div className="relative z-10"> {/* Content needs to be above the glow */}
                <Puzzle className="h-8 w-8 mb-2 text-primary" />
