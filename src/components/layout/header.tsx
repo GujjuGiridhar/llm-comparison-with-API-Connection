@@ -36,7 +36,7 @@ export function Header() {
              className={cn(
                'flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground', // Consistent padding/rounding, added hover background
                isActive('/')
-                 ? 'bg-accent/60 text-accent-foreground font-semibold' // Active state: subtle background, foreground text, bold
+                 ? 'bg-accent text-accent-foreground font-semibold' // Active state: solid background, foreground text, bold
                  : 'text-muted-foreground' // Inactive state: muted color
              )}
            >
@@ -48,7 +48,7 @@ export function Header() {
              className={cn(
                 'flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground',
                 isActive('/compare')
-                  ? 'bg-accent/60 text-accent-foreground font-semibold'
+                  ? 'bg-accent text-accent-foreground font-semibold' // Active state: solid background
                   : 'text-muted-foreground'
              )}
            >
@@ -60,7 +60,7 @@ export function Header() {
              className={cn(
                 'flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground',
                 isActive('/settings')
-                  ? 'bg-accent/60 text-accent-foreground font-semibold'
+                  ? 'bg-accent text-accent-foreground font-semibold' // Active state: solid background
                   : 'text-muted-foreground'
              )}
            >
