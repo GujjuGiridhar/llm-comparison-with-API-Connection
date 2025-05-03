@@ -5,7 +5,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
-import { Send } from "lucide-react";
+import { Send, X } from "lucide-react"; // Added X icon
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { Connection } from "@/app/settings/page"; // Import Connection type
+import { cn } from "@/lib/utils"; // Import cn
 
 const ComparisonSetupSchema = z.object({
   prompt: z.string().min(1, {
@@ -86,14 +87,15 @@ export function ComparisonSetup({ connections, onSubmit, isLoading }: Comparison
                           control={form.control}
                           name="selectedConnectionIds"
                           render={({ field }) => {
+                            const isChecked = field.value?.includes(connection.id);
                             return (
                               <FormItem
                                 key={connection.id}
-                                className="flex flex-row items-center space-x-3 space-y-0 rounded-md border border-input p-3 bg-input/50 hover:bg-input/75 transition-colors"
+                                className="relative flex flex-row items-center space-x-3 space-y-0 rounded-md border border-input p-3 bg-input/50 hover:bg-input/75 transition-colors" // Added relative positioning
                               >
                                 <FormControl>
                                   <Checkbox
-                                    checked={field.value?.includes(connection.id)}
+                                    checked={isChecked}
                                     onCheckedChange={(checked) => {
                                       return checked
                                         ? field.onChange([...(field.value || []), connection.id])
@@ -106,9 +108,30 @@ export function ComparisonSetup({ connections, onSubmit, isLoading }: Comparison
                                     disabled={isLoading}
                                   />
                                 </FormControl>
-                                <FormLabel className="font-normal text-foreground truncate cursor-pointer">
+                                <FormLabel className="font-normal text-foreground truncate cursor-pointer flex-1 pr-5"> {/* Added padding-right */}
                                   {connection.connectionName} ({connection.model})
                                 </FormLabel>
+                                {/* Add X button */}
+                                {isChecked && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10" // Positioned button
+                                    onClick={(e) => {
+                                        e.preventDefault(); // Prevent form submission or label click
+                                        field.onChange(
+                                            (field.value || []).filter(
+                                            (value) => value !== connection.id
+                                            )
+                                        );
+                                    }}
+                                    disabled={isLoading}
+                                    aria-label={`Deselect ${connection.connectionName}`}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </FormItem>
                             )
                           }}
