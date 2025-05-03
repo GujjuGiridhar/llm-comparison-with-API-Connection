@@ -48,6 +48,14 @@ interface OllamaGenerateResponse {
     prompt_eval_duration?: number;
     eval_count?: number; // Completion tokens
     eval_duration?: number; // Processing time for completion
+    // Added field for potential errors from Ollama
+    error?: string;
+}
+
+// Request structure for the Next.js proxy route
+interface ProxyRequest {
+    baseUrl: string;
+    requestBody: OllamaGenerateRequest;
 }
 
 
@@ -55,12 +63,12 @@ export function ApiRequestTesterDialog({
   isOpen,
   onClose,
   defaultBaseUrl = "http://localhost:11434",
-  defaultModelName = "llama2",
+  defaultModelName = "llama3", // Updated default model
 }: ApiRequestTesterDialogProps) {
   const { toast } = useToast();
   const [baseUrl, setBaseUrl] = React.useState(defaultBaseUrl);
   const [modelName, setModelName] = React.useState(defaultModelName);
-  const [prompt, setPrompt] = React.useState("Write a short story");
+  const [prompt, setPrompt] = React.useState("Write a short story about a friendly robot."); // Updated default prompt
   const [temperature, setTemperature] = React.useState(0.7);
   const [maxTokens, setMaxTokens] = React.useState(2048);
   const [curlCommand, setCurlCommand] = React.useState("");
@@ -92,7 +100,7 @@ export function ApiRequestTesterDialog({
     setLoading(true);
     setApiResponse("Loading..."); // Indicate loading in response area
     try {
-        const requestBody: OllamaGenerateRequest = {
+        const ollamaRequestBody: OllamaGenerateRequest = {
             model: modelName,
             prompt: prompt,
             stream: false,
@@ -102,20 +110,27 @@ export function ApiRequestTesterDialog({
             },
         };
 
-      const response = await fetch(`${baseUrl}/api/generate`, {
+        const proxyRequestData: ProxyRequest = {
+            baseUrl: baseUrl,
+            requestBody: ollamaRequestBody,
+        };
+
+      // Use the Next.js proxy route
+      const response = await fetch(`/api/proxy/ollama/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // No Authorization header needed for standard Ollama setup
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(proxyRequestData),
       });
 
-      const data = await response.json() as OllamaGenerateResponse;
+      const data = await response.json(); // Response from the proxy
       setApiResponse(JSON.stringify(data, null, 2));
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} - ${data?.response || JSON.stringify(data)}`);
+      // Check the status from the proxy's response
+      if (!response.ok || data.error) {
+         const errorMessage = data.error || `Proxy request failed with status: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       toast({
@@ -124,6 +139,7 @@ export function ApiRequestTesterDialog({
       });
     } catch (error: any) {
       console.error("API test error:", error);
+      // Display the error message received from the proxy or fetch failure
       setApiResponse(`Error: ${error.message}`);
       toast({
         title: "API Test Failed",
@@ -183,7 +199,7 @@ export function ApiRequestTesterDialog({
                         id="model-name-tester"
                         value={modelName}
                         onChange={(e) => setModelName(e.target.value)}
-                        placeholder="llama2"
+                        placeholder="llama3"
                         />
                     </div>
                 </div>
@@ -207,14 +223,14 @@ export function ApiRequestTesterDialog({
                     type="number"
                     step="0.1"
                     min="0"
-                    max="1" // Or higher if model supports
+                    max="2" // Allow higher temps
                     value={temperature}
                     onChange={(e) => setTemperature(Number(e.target.value))}
                     placeholder="0.7"
                     />
                 </div>
                  <div>
-                    <Label htmlFor="max-tokens-tester">Max Tokens</Label>
+                    <Label htmlFor="max-tokens-tester">Max Tokens (num_predict)</Label>
                     <Input
                     id="max-tokens-tester"
                     type="number"
@@ -228,7 +244,7 @@ export function ApiRequestTesterDialog({
               </div>
 
               <div>
-                <Label>cURL Command</Label>
+                <Label>Example cURL Command (Direct to Ollama)</Label>
                 <div className="relative">
                   <Textarea
                     readOnly
@@ -247,6 +263,7 @@ export function ApiRequestTesterDialog({
                     <span className="sr-only">Copy cURL command</span>
                   </Button>
                 </div>
+                 <p className="text-xs text-muted-foreground mt-1">Note: This cURL command interacts directly with the Ollama API. The 'Test API' button uses a server proxy.</p>
               </div>
                {/* Button for Postman Collection */}
                <Button variant="link" size="sm" onClick={handleDownloadPostman} className="p-0 h-auto text-primary hover:underline">
