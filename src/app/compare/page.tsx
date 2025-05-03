@@ -25,6 +25,47 @@ import { ApiRequestTesterDialog } from "@/components/api-request-tester-dialog";
 
 const LOGS_STORAGE_KEY = 'comparison_logs';
 const MAX_LOGS = 20; // Limit the number of logs stored
+const CONNECTIONS_STORAGE_KEY = 'llm_connections'; // Use the same key as settings
+
+// Helper function to get mock connections (same as in settings)
+const getMockConnections = (): Connection[] => [
+    {
+        id: 'mock-ollama-1',
+        type: 'ollama',
+        connectionName: "Local Llama",
+        baseUrl: "http://localhost:11434",
+        model: "llama3:latest",
+        contextSize: 4096,
+        threads: "auto",
+        temperature: 0.7,
+        maxTokens: 2048,
+        isActive: true,
+    },
+    {
+        id: 'mock-ollama-2',
+        type: 'ollama',
+        connectionName: "Local Mistral",
+        baseUrl: "http://localhost:11434",
+        model: "mistral:latest",
+        contextSize: 8192,
+        threads: "auto",
+        temperature: 0.6,
+        maxTokens: 4096,
+        isActive: true,
+    },
+     {
+        id: 'mock-api-1',
+        type: 'api',
+        providerName: 'openai', // Ensure this matches a key in supportedProviders
+        connectionName: "OpenAI GPT-4o",
+        apiKey: "mock-key", // Use placeholder
+        apiUrl: "", // OpenAI doesn't need URL
+        model: "gpt-4o",
+        temperature: 0.7,
+        maxTokens: 1024,
+        isActive: true,
+    }
+];
 
 export default function ComparePage() {
   const { toast } = useToast();
@@ -37,69 +78,52 @@ export default function ComparePage() {
   const [isTogetherApiTesterOpen, setIsTogetherApiTesterOpen] = React.useState(false); // State for Together API tester dialog
   const [isApiTesterOpen, setIsApiTesterOpen] = React.useState(false); // State for the new API Request Tester dialog
   const [comparisonLogs, setComparisonLogs] = React.useState<ComparisonLog[]>([]);
-  // const [lastRunTimestamp, setLastRunTimestamp] = React.useState<Date | null>(null); // No longer needed for chart
+
 
   // Load connections and logs from localStorage on mount
   React.useEffect(() => {
-    // Load Connections
-    const savedConnections = localStorage.getItem('llm_connections');
-    let activeConnections: Connection[] = [];
+    // --- Load Connections ---
+    const savedConnections = localStorage.getItem(CONNECTIONS_STORAGE_KEY);
+    let loadedConnections: Connection[] = [];
+    let useMocks = false; // Flag to track if mocks were used
+
     if (savedConnections) {
       try {
         const parsedConnections = JSON.parse(savedConnections) as Connection[];
-        activeConnections = parsedConnections.filter(conn => conn.isActive);
+        if (Array.isArray(parsedConnections)) {
+            loadedConnections = parsedConnections;
+        } else {
+            console.error("ComparePage: Invalid data format in localStorage for connections. Expected array.");
+            // Optionally clear invalid data, or decide to use mocks
+            // localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
+        }
       } catch (error) {
-        console.error("Failed to parse connections from localStorage", error);
+        console.error("ComparePage: Failed to parse connections from localStorage", error);
+        // Clear invalid data if parsing fails
+        localStorage.removeItem(CONNECTIONS_STORAGE_KEY);
       }
+    } else {
+        // ONLY add mock data if the key doesn't exist at all
+        console.log("ComparePage: No connections found in localStorage. Adding mock data.");
+        loadedConnections = getMockConnections();
+        localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(loadedConnections)); // Save mocks
+        useMocks = true;
     }
 
-    if (activeConnections.length === 0) {
-        // Add mock data if local storage is empty or no active connections
-        const mockConnections: Connection[] = [
-            {
-                id: 'mock-ollama-1',
-                type: 'ollama',
-                connectionName: "Local Llama",
-                baseUrl: "http://localhost:11434",
-                model: "llama3:latest",
-                contextSize: 4096,
-                threads: "auto",
-                temperature: 0.7,
-                maxTokens: 2048,
-                isActive: true,
-            },
-             {
-                id: 'mock-ollama-2',
-                type: 'ollama',
-                connectionName: "Local Mistral",
-                baseUrl: "http://localhost:11434",
-                model: "mistral:latest",
-                contextSize: 8192,
-                threads: "auto",
-                temperature: 0.6,
-                maxTokens: 4096,
-                isActive: true,
-            },
-             {
-                id: 'mock-api-1',
-                type: 'api',
-                providerName: 'openai', // Ensure this matches a key in supportedProviders
-                connectionName: "OpenAI GPT-4o",
-                apiKey: "mock-key", // Use placeholder
-                apiUrl: "", // OpenAI doesn't need URL
-                model: "gpt-4o",
-                temperature: 0.7,
-                maxTokens: 1024,
-                isActive: true,
-            }
-        ];
-        activeConnections = mockConnections.filter(conn => conn.isActive);
-        // Optionally save mocks to localStorage for next load
-        // localStorage.setItem('llm_connections', JSON.stringify(mockConnections));
-    }
-     setConnections(activeConnections);
+    // Filter for active connections AFTER loading or generating mocks
+    const activeConnections = loadedConnections.filter(conn => conn.isActive);
 
-     // Load Logs
+    // If there are still no active connections (even after loading/mocks), maybe show a message or use empty array
+    if (activeConnections.length === 0 && !useMocks) {
+        console.warn("ComparePage: No active connections loaded from localStorage.");
+        // Consider adding mocks here if loadedConnections was empty initially,
+        // but parsed correctly (e.g., user deactivated all)
+        // activeConnections = getMockConnections().filter(conn => conn.isActive);
+    }
+
+     setConnections(activeConnections); // Set only active connections for the setup component
+
+     // --- Load Logs ---
      const savedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
      if (savedLogs) {
          try {
@@ -111,7 +135,7 @@ export default function ComparePage() {
          }
      }
 
-  }, []);
+  }, []); // Empty dependency array
 
 
   React.useEffect(() => {
@@ -143,7 +167,6 @@ export default function ComparePage() {
  const handleCompareSubmit = async (data: { prompt: string; selectedConnectionIds: string[] }) => {
     console.log("Comparison submitted:", data);
     const startTime = performance.now(); // Start timing the whole comparison
-    // setLastRunTimestamp(new Date()); // No longer needed for chart
     let currentResultsState: PerformanceResult[] = []; // Variable to hold the latest results state
 
     if (data.selectedConnectionIds.length === 0) {
@@ -174,7 +197,6 @@ export default function ComparePage() {
             connectionName: conn?.connectionName || `Model ${id.substring(0, 5)}`,
             modelName: conn?.model || 'unknown',
             status: 'running' as 'running',
-            // Initialize other fields as needed or leave undefined
             processingTime: undefined,
             responseTime: undefined,
             tokensPerSecond: undefined,
@@ -201,7 +223,7 @@ export default function ComparePage() {
           const delay = 500 + Math.random() * 2500; // 0.5s to 3s
           await new Promise(resolve => setTimeout(resolve, delay));
 
-          // Simulate an error for one of the models sometimes - REMOVED for predictability
+          // REMOVED: Simulated error generation
           // if (Math.random() < 0.1) { // 10% chance of error
           //     throw new Error("Simulated API Error");
           // }
@@ -244,14 +266,13 @@ export default function ComparePage() {
                modelName: modelName,
                status: 'error' as 'error',
                errorMessage: error.message || 'Request failed or timed out.',
-                // Set performance metrics to undefined or 0 for errors
                processingTime: undefined,
                responseTime: undefined,
                tokensPerSecond: undefined,
                totalTokens: undefined,
                promptTokens: data.prompt.split(/\s+/).length, // Prompt tokens might still be known
                completionTokens: undefined,
-               elapsedTime: undefined, // Could potentially track error time if needed
+               elapsedTime: undefined,
            };
         }
 
@@ -267,14 +288,13 @@ export default function ComparePage() {
       // Wait for all promises to settle (complete or error)
       await Promise.allSettled(resultPromises);
 
-    } catch (error) { // Catch errors in the overall setup/Promise handling (less likely here)
+    } catch (error) { // Catch errors in the overall setup/Promise handling
         console.error("Comparison failed:", error);
         toast({
             title: "Comparison Failed",
             description: "An unexpected error occurred during the comparison process.",
             variant: "destructive",
         });
-         // Mark any remaining 'running' tasks as error
          setResults(prevResults => {
             const updated = prevResults.map(r =>
                 r.status === 'running' ? { ...r, status: 'error', errorMessage: 'Overall comparison process failed.' } : r
@@ -297,8 +317,8 @@ export default function ComparePage() {
              promptTokens: r.promptTokens,
              completionTokens: r.completionTokens,
              processingTime: r.processingTime,
-             status: r.status, // Use the final status (complete or error)
-             errorMessage: r.errorMessage, // Include error message if any
+             status: r.status,
+             errorMessage: r.errorMessage,
          }));
 
         const newLogEntry: ComparisonLog = {
@@ -309,13 +329,11 @@ export default function ComparePage() {
             results: finalResultsForLog,
         };
 
-        // Update logs state and save to localStorage
         setComparisonLogs(prevLogs => {
            const updatedLogs = [newLogEntry, ...prevLogs].slice(0, MAX_LOGS);
-           saveLogs(updatedLogs); // Save the updated logs
+           saveLogs(updatedLogs);
            return updatedLogs;
        });
-       // setLastRunTimestamp(new Date()); // No longer needed for chart
     }
   };
 
@@ -339,19 +357,19 @@ export default function ComparePage() {
   const handleTogetherApiClick = () => {
      setIsTogetherApiTesterOpen(true);
   }
-  // Updated handler for API Test button
   const handleApiTestClick = () => {
       setIsApiTesterOpen(true);
   };
 
   // Refresh button handler
   const handleRefreshClick = () => {
-    // Find the most recent log entry to re-run
     const lastLog = comparisonLogs.length > 0 ? comparisonLogs[0] : null;
     if (lastLog) {
-        // Find the connection IDs used in the last run
         const lastConnectionIds = lastLog.results.map(r => r.modelId);
-        const availableLastConnectionIds = lastConnectionIds.filter(id => connections.some(c => c.id === id));
+        // Find currently available connections that were used in the last run
+        const availableLastConnectionIds = lastConnectionIds.filter(id =>
+            connections.some(c => c.id === id)
+        );
 
         if (availableLastConnectionIds.length > 0) {
             toast({ title: "Refreshing Comparison", description: "Re-running the last comparison..." });
@@ -360,16 +378,10 @@ export default function ComparePage() {
                 selectedConnectionIds: availableLastConnectionIds
             });
         } else {
-             toast({ title: "Cannot Refresh", description: "Models from the last comparison are no longer available.", variant: "destructive" });
-             // Optionally clear state or just do nothing
-             // setShowResults(false);
-             // setResults([]);
+             toast({ title: "Cannot Refresh", description: "Models from the last comparison are no longer available or active.", variant: "destructive" });
         }
     } else {
         toast({ title: "Nothing to Refresh", description: "No previous comparison found in logs." });
-         // Optionally clear current results if any
-         // setShowResults(false);
-         // setResults([]);
     }
 };
 
@@ -391,7 +403,6 @@ const handleDeleteLog = (logId: string) => {
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4 md:mb-0">
             Model Comparison
           </h1>
-           {/* Toolbar */}
            <div className="flex items-center space-x-1 md:space-x-2 border border-border rounded-md p-1 bg-card/80 backdrop-blur-sm">
                <Button variant="ghost" size="sm" onClick={handleLogsClick} aria-label="Show Logs">
                    <Logs className="h-4 w-4 mr-1" /> Logs
@@ -402,7 +413,7 @@ const handleDeleteLog = (logId: string) => {
                </Button>
                <Separator orientation="vertical" className="h-6" />
                <Button variant="ghost" size="sm" onClick={handleTogetherApiClick}>
-                   <Combine className="h-4 w-4 mr-1" /> {/* Using Combine for Together API */}
+                   <Combine className="h-4 w-4 mr-1" />
                    Together API
                </Button>
                <Button variant="ghost" size="sm" onClick={handleApiTestClick}>
@@ -419,7 +430,7 @@ const handleDeleteLog = (logId: string) => {
 
         {/* Setup Section (Prompt and Model Selection) */}
         <ComparisonSetup
-          connections={connections}
+          connections={connections} // Pass active connections
           onSubmit={handleCompareSubmit}
           isLoading={isLoading}
         />
@@ -443,9 +454,8 @@ const handleDeleteLog = (logId: string) => {
         {/* Performance Metrics Section - Render Chart */}
         {showResults && (
             <PerformanceChart
-                results={results} // Pass all results, chart will filter completed ones
+                results={results}
                 isLoading={isLoading}
-                // lastRunTimestamp is removed
              />
         )}
 
@@ -483,9 +493,8 @@ const handleDeleteLog = (logId: string) => {
        <MetricsVerificationDialog
            isOpen={isVerificationOpen}
            onClose={() => setIsVerificationOpen(false)}
-           // Pass the most recent log entry for verification
            logEntry={comparisonLogs.length > 0 ? comparisonLogs[0] : null}
-           onRefresh={handleRefreshClick} // Pass the refresh handler
+           onRefresh={handleRefreshClick}
        />
 
         {/* Together API Tester Modal */}
@@ -498,8 +507,7 @@ const handleDeleteLog = (logId: string) => {
          <ApiRequestTesterDialog
              isOpen={isApiTesterOpen}
              onClose={() => setIsApiTesterOpen(false)}
-             // You might pass default values based on selected connections or last run
-             // defaultBaseUrl={...}
+             // defaultBaseUrl={...} // Potentially pass defaults based on context
              // defaultModelName={...}
          />
     </>

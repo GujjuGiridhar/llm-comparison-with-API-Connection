@@ -31,6 +31,46 @@ export type Connection = (
 
 const LOCAL_STORAGE_KEY = 'llm_connections';
 
+// Helper function to generate mock data
+const getMockConnections = (): Connection[] => [
+    {
+        id: 'mock-ollama-1',
+        type: 'ollama',
+        connectionName: "Local Llama",
+        baseUrl: "http://localhost:11434",
+        model: "llama3:latest",
+        contextSize: 4096,
+        threads: "auto",
+        temperature: 0.7,
+        maxTokens: 2048,
+        isActive: true,
+    },
+    {
+        id: 'mock-ollama-2',
+        type: 'ollama',
+        connectionName: "Local Mistral",
+        baseUrl: "http://localhost:11434",
+        model: "mistral:latest",
+        contextSize: 8192,
+        threads: "auto",
+        temperature: 0.6,
+        maxTokens: 4096,
+        isActive: true,
+    },
+     {
+        id: 'mock-api-1',
+        type: 'api',
+        providerName: 'openai', // Ensure this matches a key in supportedProviders
+        connectionName: "OpenAI GPT-4o",
+        apiKey: "mock-key", // Use placeholder
+        apiUrl: "", // OpenAI doesn't need URL
+        model: "gpt-4o",
+        temperature: 0.7,
+        maxTokens: 1024,
+        isActive: true,
+    }
+];
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = React.useState<"ollama" | "api">("ollama");
@@ -38,58 +78,61 @@ export default function SettingsPage() {
   const [connections, setConnections] = React.useState<Connection[]>([]);
   const [editingConnection, setEditingConnection] = React.useState<Connection | null>(null);
   const [connectionToDelete, setConnectionToDelete] = React.useState<Connection | null>(null);
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = React.useState(false); // Track initial load
 
 
    // Load connections from localStorage on mount
   React.useEffect(() => {
     const savedConnections = localStorage.getItem(LOCAL_STORAGE_KEY);
+    let loadedConnections: Connection[] = [];
+
     if (savedConnections) {
        try {
+         // Attempt to parse existing connections
          const parsedConnections = JSON.parse(savedConnections) as Connection[];
-         setConnections(parsedConnections);
+         // Basic validation: Check if it's an array
+         if (Array.isArray(parsedConnections)) {
+            loadedConnections = parsedConnections;
+         } else {
+            console.error("Invalid data format in localStorage for connections. Expected array.");
+            // Optionally clear invalid data
+            // localStorage.removeItem(LOCAL_STORAGE_KEY);
+         }
        } catch (error) {
          console.error("Failed to parse connections from localStorage", error);
-         setConnections([]); // Reset if parsing fails
-         localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear invalid data
+         // Clear invalid data if parsing fails
+         localStorage.removeItem(LOCAL_STORAGE_KEY);
        }
      } else {
-         // Add mock data if local storage is empty
-         const mockConnections: Connection[] = [
-             {
-                 id: 'mock-ollama-1',
-                 type: 'ollama',
-                 connectionName: "Local Llama",
-                 baseUrl: "http://localhost:11434",
-                 model: "llama3:latest",
-                 contextSize: 4096,
-                 threads: "auto",
-                 temperature: 0.7,
-                 maxTokens: 2048,
-                 isActive: true,
-             },
-              {
-                 id: 'mock-ollama-2',
-                 type: 'ollama',
-                 connectionName: "Local Mistral",
-                 baseUrl: "http://localhost:11434",
-                 model: "mistral:latest",
-                 contextSize: 8192,
-                 threads: "auto",
-                 temperature: 0.6,
-                 maxTokens: 4096,
-                 isActive: true,
-             }
-         ];
-         setConnections(mockConnections);
+         // ONLY add mock data if the key doesn't exist at all
+         console.log("No connections found in localStorage. Adding mock data.");
+         loadedConnections = getMockConnections();
          // Save mocks to localStorage for next load
-         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mockConnections));
+         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(loadedConnections));
      }
-  }, []);
 
-   // Save connections to localStorage whenever they change
+     setConnections(loadedConnections);
+     setIsInitialLoadComplete(true); // Mark initial load as complete
+
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+   // Save connections to localStorage whenever they change, BUT only after initial load
    React.useEffect(() => {
-     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(connections));
-   }, [connections]);
+     // Prevent saving during the initial load phase before connections are properly set
+     if (!isInitialLoadComplete) {
+         return;
+     }
+     try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(connections));
+     } catch (error) {
+         console.error("Failed to save connections to localStorage", error);
+         toast({
+             title: "Error Saving Settings",
+             description: "Could not save connection changes to local storage.",
+             variant: "destructive",
+         });
+     }
+   }, [connections, isInitialLoadComplete, toast]); // Depend on connections and the load flag
 
 
   React.useEffect(() => {
@@ -119,7 +162,7 @@ export default function SettingsPage() {
       setConnections(prev =>
         prev.map(conn =>
           conn.id === editingConnection.id
-            ? { ...conn, ...data, type: connectionType } // Ensure type is preserved/updated
+            ? { ...conn, ...data, type: connectionType, id: editingConnection.id, isActive: editingConnection.isActive } // Ensure ID and isActive are preserved on edit
             : conn
         )
       );
@@ -196,15 +239,20 @@ export default function SettingsPage() {
     if (!showForm) return null;
 
     if (activeTab === 'ollama') {
-      return <OllamaForm onSubmit={handleSaveConnection as (data: OllamaFormValues) => void} onCancel={handleCancelForm} initialData={editingConnection as OllamaFormValues | undefined} />;
+      return <OllamaForm onSubmit={handleSaveConnection as (data: OllamaFormValues) => void} onCancel={handleCancelForm} initialData={editingConnection?.type === 'ollama' ? editingConnection as OllamaFormValues : undefined} isLoading={false} />;
     } else if (activeTab === 'api') {
-       return <ApiForm onSubmit={handleSaveConnection as (data: ApiFormValues) => void} onCancel={handleCancelForm} initialData={editingConnection as ApiFormValues | undefined} />;
+       return <ApiForm onSubmit={handleSaveConnection as (data: ApiFormValues) => void} onCancel={handleCancelForm} initialData={editingConnection?.type === 'api' ? editingConnection as ApiFormValues : undefined} isLoading={false} />;
     }
     return null;
   };
 
   const renderConnectionList = () => {
     if (showForm) return null; // Don't show list when form is open
+
+     if (!isInitialLoadComplete) {
+        // Optional: Show a loading state while reading from localStorage
+        return <div className="p-6 text-center text-muted-foreground">Loading connections...</div>;
+     }
 
     if (filteredConnections.length === 0) {
       return (
@@ -236,28 +284,30 @@ export default function SettingsPage() {
 
   return (
     <main className="container mx-auto px-4 py-8 md:py-12">
-      <header className="mb-8 md:mb-12">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
+      <header className="mb-8 md:mb-12 flex justify-between items-center">
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground">
           Settings
         </h1>
-      </header>
-
-      <div className="max-w-4xl mx-auto space-y-8">
-        <Card className="shadow-lg border-border">
-           {/* Show Header with Add button only when list is visible */}
-          {!showForm && (
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-               <CardTitle className="text-xl">Model Connections</CardTitle>
+         {/* Add Connection button moved to header, shown only when list is visible */}
+         {!showForm && (
               <Button size="sm" onClick={handleAddConnectionClick} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Connection
               </Button>
-            </CardHeader>
           )}
+      </header>
+
+      <div className="max-w-4xl mx-auto space-y-8">
+        <Card className="shadow-lg border-border">
+           {/* Card Header - Show title or form status */}
+          <CardHeader className="pb-4">
+               <CardTitle className="text-xl">{showForm ? (editingConnection ? 'Edit Connection' : 'Add New Connection') : 'Model Connections'}</CardTitle>
+          </CardHeader>
+
           <CardContent>
              {/* Show tabs only when list is visible */}
             {!showForm && (
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ollama" | "api")} className="w-full">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ollama" | "api")} className="w-full mb-4">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="ollama">Ollama</TabsTrigger>
                   <TabsTrigger value="api">API</TabsTrigger>
