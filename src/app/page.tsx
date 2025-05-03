@@ -21,7 +21,7 @@ export default function Home() {
               as="a" // Render as an anchor tag for Link compatibility
               role="button" // Add role for semantics
               size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105" // Keep hover scale
+              className="bg-primary text-primary-foreground btn" // Added btn class for global hover effect
             >
               <Settings className="mr-2 h-5 w-5" />
               Configure Models
@@ -34,7 +34,7 @@ export default function Home() {
               role="button" // Add role for semantics
               size="lg"
               variant="secondary"
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105" // Keep hover scale
+              className="bg-secondary text-secondary-foreground btn" // Added btn class for global hover effect
             >
               Start Comparing <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -44,8 +44,8 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-        <Card className="text-left bg-card/80 border-border shadow-lg transition-shadow duration-200"> {/* Added bg-card/80 */}
-          <CardHeader>
+        <Card className="text-left card-glow bg-card/70 border-border"> {/* Added card-glow and adjusted bg */}
+          <CardHeader className="bg-card/90 rounded-t-lg"> {/* Added background color to header */}
             <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Multiple Providers</CardTitle>
           </CardHeader>
@@ -55,8 +55,8 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card/80 border-border shadow-lg transition-shadow duration-200"> {/* Added bg-card/80 */}
-          <CardHeader>
+        <Card className="text-left card-glow bg-card/70 border-border"> {/* Added card-glow and adjusted bg */}
+          <CardHeader className="bg-card/90 rounded-t-lg"> {/* Added background color to header */}
             <BarChart className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Real-time Analysis</CardTitle>
           </CardHeader>
@@ -66,8 +66,8 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card/80 border-border shadow-lg transition-shadow duration-200"> {/* Added bg-card/80 */}
-          <CardHeader>
+        <Card className="text-left card-glow bg-card/70 border-border"> {/* Added card-glow and adjusted bg */}
+          <CardHeader className="bg-card/90 rounded-t-lg"> {/* Added background color to header */}
             <Puzzle className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Easy Configuration</CardTitle>
           </CardHeader>
