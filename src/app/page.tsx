@@ -21,7 +21,7 @@ export default function Home() {
               as="a" // Render as an anchor tag for Link compatibility
               role="button" // Add role for semantics
               size="lg"
-              className="btn" // Apply base btn class for global hover/focus
+              // className="btn" // Removed potentially conflicting class
               variant="primary" // Apply primary variant for styling
             >
               <Settings className="mr-2 h-5 w-5" />
