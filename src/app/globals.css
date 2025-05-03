@@ -105,15 +105,15 @@ body {
   }
 }
 
-/* Add glow effect to buttons */
+/* Add glow effect to buttons and cards */
 @layer components {
-   .btn {
-     @apply transition-all duration-150 ease-in-out; /* Apply transition to all properties */
+   .btn, button, a[role="button"] { /* Apply transition to all button-like elements */
+     @apply transition-all duration-150 ease-in-out;
    }
-   .input {
+   .input, textarea, select { /* Apply transition to form elements */
       @apply transition-colors duration-150 ease-in-out;
    }
-   /* Example subtle hover for buttons */
+   /* Button specific hover states */
    .btn-primary {
       @apply hover:bg-primary/90;
    }
@@ -126,23 +126,30 @@ body {
     .btn-outline {
        @apply hover:bg-accent hover:text-accent-foreground;
    }
-    /* Glow effect on focus-visible and hover */
-    /* Use --ring color for the glow */
+
+    /* Glow effect on focus-visible and hover for buttons/links */
     button:focus-visible,
     a[role="button"]:focus-visible {
        @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
-       box-shadow: 0 0 15px 3px hsl(var(--ring) / 0.4); /* Glow effect */
+       box-shadow: 0 0 15px 3px hsl(var(--ring) / 0.4); /* More visible glow on focus */
     }
     button:hover,
     a[role="button"]:hover {
         box-shadow: 0 0 15px 3px hsl(var(--ring) / 0.3); /* Subtle glow on hover */
     }
+
     /* Ensure inputs also get focus ring */
      input:focus-visible, textarea:focus-visible, select:focus-visible {
        @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
     }
-    /* Card shadow refinement */
+
+    /* Card shadow refinement and hover glow */
     .card {
-        @apply shadow-md hover:shadow-xl transition-shadow duration-200;
+        @apply shadow-md transition-all duration-200 ease-in-out; /* Keep base shadow and transition */
+    }
+    .card:hover {
+        @apply shadow-xl; /* Increase shadow */
+        box-shadow: 0 10px 15px -3px hsl(var(--ring) / 0.1), /* Existing larger shadow */
+                    0 0 20px 5px hsl(var(--ring) / 0.2); /* Added glow effect */
     }
 }

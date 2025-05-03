@@ -21,7 +21,7 @@ export default function Home() {
               as="a" // Render as an anchor tag for Link compatibility
               role="button" // Add role for semantics
               size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105" // Keep hover scale
             >
               <Settings className="mr-2 h-5 w-5" />
               Configure Models
@@ -34,7 +34,7 @@ export default function Home() {
               role="button" // Add role for semantics
               size="lg"
               variant="secondary"
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 w-full sm:w-auto transition-transform duration-200 hover:scale-105" // Keep hover scale
             >
               Start Comparing <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -44,7 +44,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-        <Card className="text-left bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-200">
+        <Card className="text-left bg-card border-border shadow-lg transition-shadow duration-200"> {/* Removed hover:shadow-xl */}
           <CardHeader>
             <DatabaseZap className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Multiple Providers</CardTitle>
@@ -55,7 +55,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-200">
+        <Card className="text-left bg-card border-border shadow-lg transition-shadow duration-200"> {/* Removed hover:shadow-xl */}
           <CardHeader>
             <BarChart className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Real-time Analysis</CardTitle>
@@ -66,7 +66,7 @@ export default function Home() {
             </CardDescription>
           </CardContent>
         </Card>
-        <Card className="text-left bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-200">
+        <Card className="text-left bg-card border-border shadow-lg transition-shadow duration-200"> {/* Removed hover:shadow-xl */}
           <CardHeader>
             <Puzzle className="h-8 w-8 mb-2 text-primary" />
             <CardTitle>Easy Configuration</CardTitle>
