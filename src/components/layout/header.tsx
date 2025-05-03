@@ -16,49 +16,56 @@ export function Header() {
   const isActive = (path: string) => pathname === path;
 
   return (
+    // Sticky header with background blur and subtle border
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 max-w-screen-2xl items-center">
+        {/* Logo/Title Section */}
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Scale className="h-6 w-6" />
-            <span className="font-bold sm:inline-block">
+            <Scale className="h-6 w-6 text-primary" /> {/* Added color to icon */}
+            <span className="font-bold sm:inline-block text-foreground">
               LLM Comparo
             </span>
           </Link>
         </div>
-        <nav className="flex flex-1 items-center space-x-6 text-sm font-medium">
-          {/* Links will be added here later if needed */}
-        </nav>
-        <div className="flex items-center justify-end space-x-2 md:space-x-4"> {/* Adjusted spacing */}
+
+        {/* Navigation Links - Right Aligned */}
+        <div className="flex flex-1 items-center justify-end space-x-4 md:space-x-6"> {/* Adjusted spacing */}
            <Link
              href="/"
              className={cn(
-               'flex items-center transition-colors hover:text-foreground/80',
-               isActive('/') ? 'text-foreground' : 'text-foreground/60'
+               'flex items-center px-2 py-1 text-sm font-medium transition-colors hover:text-primary', // Adjusted padding and added primary hover
+               isActive('/')
+                 ? 'text-primary border-b-2 border-primary' // Active state: primary color and bottom border
+                 : 'text-muted-foreground' // Inactive state: muted color
              )}
            >
              <Home className="mr-1 h-4 w-4" />
-             <span className="hidden sm:inline">Home</span> {/* Hide text on small screens */}
+             <span className="hidden sm:inline">Home</span>
            </Link>
            <Link
              href="/compare"
              className={cn(
-               'flex items-center transition-colors hover:text-foreground/80',
-               isActive('/compare') ? 'text-foreground' : 'text-foreground/60'
+                'flex items-center px-2 py-1 text-sm font-medium transition-colors hover:text-primary',
+                isActive('/compare')
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-muted-foreground'
              )}
            >
-             <GitCompareArrows className="mr-1 h-4 w-4" /> {/* Changed Icon */}
-              <span className="hidden sm:inline">Compare</span> {/* Hide text on small screens */}
+             <GitCompareArrows className="mr-1 h-4 w-4" />
+              <span className="hidden sm:inline">Compare</span>
            </Link>
            <Link
              href="/settings"
              className={cn(
-               'flex items-center transition-colors hover:text-foreground/80',
-               isActive('/settings') ? 'text-foreground' : 'text-foreground/60'
+                'flex items-center px-2 py-1 text-sm font-medium transition-colors hover:text-primary',
+                isActive('/settings')
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-muted-foreground'
              )}
            >
              <Settings className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Settings</span> {/* Hide text on small screens */}
+              <span className="hidden sm:inline">Settings</span>
            </Link>
             <ThemeToggleButton /> {/* Add the theme toggle button */}
         </div>
